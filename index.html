@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="pl">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -17,6 +17,7 @@
       align-items: center;
       padding: 20px 10%;
       background-color: #111;
+      flex-wrap: wrap;
     }
 
     .header h1 {
@@ -25,13 +26,25 @@
       font-size: 24px;
     }
 
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
     .date-info {
       color: #008080;
-      font-size: 24px;
+      font-size: 20px;
+    }
+
+    select {
+      padding: 6px 10px;
+      font-size: 16px;
     }
 
     .table-container {
-      width: 80%;
+      width: 90%;
       margin: 24px auto;
     }
 
@@ -56,7 +69,6 @@
       border-collapse: collapse;
       background-color: #555;
       border-radius: 0 0 10px 10px;
-      margin-bottom: 20px;
     }
 
     table, th, td {
@@ -82,230 +94,183 @@
       background-color: #333;
       color: #00ffcc;
     }
+
+    .hidden {
+      display: none;
+    }
+
+    .percentage-mode td {
+      color: #ffcc00;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>LCDR LIVE DATA 2025</h1>
-    <div class="date-info" id="date-info">DATE: --</div>
+    <div class="controls">
+      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
+      <select id="month-select"></select>
+      <button id="toggle-percentage">Pokaż %</button>
+    </div>
   </div>
 
   <div class="table-container">
-    <button class="table-button">FI Station Overview</button>
-    <table id="combined-table">
-      <thead>
-        <tr>
-          <th>NAME</th>
-          <th>NDF</th>
-          <th>OK</th>
-          <th>WAITING</th>
-          <th>SCRAP TTL</th>
-          <th>SCRAP PNLA</th>
-          <th>SUMA CALKOWITA</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <button class="table-button" id="toggle-diagonal-table">Podsumowanie Diagonalne</button>
+    <div id="diagonal-table-container" class="hidden">
+      <table id="diagonal-table">
+        <thead>
+          <tr>
+            <th>NAME</th>
+            <th>86</th>
+            <th>85</th>
+            <th>75</th>
+            <th>70</th>
+            <th>65</th>
+            <th>55</th>
+            <th>50</th>
+            <th>49</th>
+            <th>43</th>
+            <th>42</th>
+            <th>34</th>
+            <th>32</th>
+            <th>27</th>
+            <th>24</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
   <script>
-    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const apiKey = 'YOUR_API_KEY';
+    const sheetId = 'YOUR_SHEET_ID';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
-
-    const diagonalsList = [86, 85, 75, 70, 65, 55, 50, 49, 43, 42, 34, 32, 27, 24];
-
-    function extractDiagonal(serial) {
-      for (const d of diagonalsList) {
-        if (serial.includes(d.toString())) {
-          return d;
-        }
-      }
-      return null;
-    }
+    const allowedDiagonals = ['86', '85', '75', '70', '65', '55', '50', '49', '43', '42', '34', '32', '27', '24'];
+    let percentageMode = false;
 
     async function getData(sheetName) {
-      const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
-      const data = await response.json();
-      return data.values;
+      try {
+        const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
+        const data = await response.json();
+        return data.values;
+      } catch (err) {
+        console.error(`Błąd pobierania danych: ${err}`);
+        return [];
+      }
     }
 
     async function fetchData() {
       const sheet1Data = await getData('FI Station KOVALCHYK Y.');
       const sheet2Data = await getData('FI Station 2 ULANOVYCH.R');
       const combined = [...sheet1Data.slice(1), ...sheet2Data.slice(1)];
-
-      return combined.map(row => {
-        const serial = row[2] || '';        // Серийный номер из столбца C (индекс 2)
-        const name = row[5] || 'UNKNOWN';   // Фамилия из столбца F (индекс 5)
-        return {
-          name: name,
-          status: row[4] || 'UNKNOWN',      // Статус из столбца E (индекс 4)
-          date: row[0] || '',               // Дата из столбца A (индекс 0)
-          diagonal: extractDiagonal(serial)
-        };
-      });
+      return combined.map(row => ({
+        name: row[5],
+        status: row[4],
+        date: row[0],
+        serial: row[2]
+      }));
     }
 
-    function getLastDate(data) {
-      const dates = data.map(record => {
-        const datePart = record.date?.split(' ')[0];
-        return datePart ? new Date(datePart) : new Date(0);
-      });
-      return new Date(Math.max(...dates));
-    }
-
-    function calculateStats(data) {
-      const stats = {};
-      data.forEach(({ name, status }) => {
-        if (!stats[name]) {
-          stats[name] = {
-            NDF: 0,
-            OK: 0,
-            WAITING: 0,
-            'SCRAP TTL': 0,
-            'SCRAP PNLA': 0,
-            total: 0
-          };
-        }
-        if (status === 'NDF') stats[name].NDF++;
-        if (status === 'OK') stats[name].OK++;
-        if (status === 'WAITING') stats[name].WAITING++;
-        if (status === 'SCRAP TTL') stats[name]['SCRAP TTL']++;
-        if (status === 'SCRAP PNLA') stats[name]['SCRAP PNLA']++;
-        stats[name].total++;
-      });
-      return stats;
-    }
-
-    function displayCombinedStats(stats) {
-      const tbody = document.querySelector('#combined-table tbody');
-      tbody.innerHTML = '';
-
-      const totals = {
-        NDF: 0,
-        OK: 0,
-        WAITING: 0,
-        'SCRAP TTL': 0,
-        'SCRAP PNLA': 0,
-        total: 0
-      };
-
-      const sortedStats = Object.entries(stats).sort(([, a], [, b]) => b.OK - a.OK);
-
-      sortedStats.forEach(([name, data]) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${name}</td>
-          <td>${data.NDF}</td>
-          <td>${data.OK}</td>
-          <td>${data.WAITING}</td>
-          <td>${data['SCRAP TTL']}</td>
-          <td>${data['SCRAP PNLA']}</td>
-          <td>${data.total}</td>
-        `;
-        tbody.appendChild(row);
-
-        totals.NDF += data.NDF;
-        totals.OK += data.OK;
-        totals.WAITING += data.WAITING;
-        totals['SCRAP TTL'] += data['SCRAP TTL'];
-        totals['SCRAP PNLA'] += data['SCRAP PNLA'];
-        totals.total += data.total;
-      });
-
-      const totalRow = document.createElement('tr');
-      totalRow.className = 'total-row';
-      totalRow.innerHTML = `
-        <td>SUMA</td>
-        <td>${totals.NDF}</td>
-        <td>${totals.OK}</td>
-        <td>${totals.WAITING}</td>
-        <td>${totals['SCRAP TTL']}</td>
-        <td>${totals['SCRAP PNLA']}</td>
-        <td>${totals.total}</td>
-      `;
-      tbody.appendChild(totalRow);
-    }
-
-    function calculateStatsByPersonAndDiagonal(data) {
+    function calculateDiagonalStats(data) {
       const result = {};
-      data.forEach(({ name, status, date, diagonal }) => {
-        if (!['OK', 'NDF'].includes(status)) return;
-        if (!diagonal) return;
+      const totalDiagonal = {};
+
+      data.forEach(({ name, serial, status, date }) => {
+        const diagonal = serial?.trim();
+        if (!['OK', 'NDF'].includes(status) || !allowedDiagonals.includes(diagonal)) return;
 
         if (!result[name]) result[name] = {};
+        if (!result[name][diagonal]) result[name][diagonal] = { count: 0, days: new Set() };
 
-        if (!result[name][diagonal]) {
-          result[name][diagonal] = {
-            count: 0,
-            dates: new Set()
-          };
-        }
+        result[name][diagonal].count += 1;
 
-        result[name][diagonal].count++;
-        result[name][diagonal].dates.add(date.split(' ')[0]);
+        const dayOnly = date?.split(' ')[0];
+        if (dayOnly) result[name][diagonal].days.add(dayOnly);
+
+        if (!totalDiagonal[diagonal]) totalDiagonal[diagonal] = 0;
+        totalDiagonal[diagonal]++;
       });
-      return result;
+
+      return { result, totalDiagonal };
     }
 
-    function displayDiagonalSummaryTable(stats) {
-      const existing = document.querySelector('#diagonal-summary');
-      if (existing) existing.remove();
+    function displayDiagonalStats(stats, totalDiagonal) {
+      const tbody = document.querySelector('#diagonal-table tbody');
+      tbody.innerHTML = '';
 
-      const container = document.createElement('div');
-      container.style.width = '80%';
-      container.style.margin = '24px auto';
-      container.id = 'diagonal-summary';
-
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      headerRow.innerHTML = `<th>NAME</th>` + diagonalsList.map(d => `<th>${d}"</th>`).join('');
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-
-      Object.entries(stats).forEach(([name, diagStats]) => {
+      Object.entries(stats).forEach(([name, diagonals]) => {
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${name}</td>` + diagonalsList.map(d => {
-          const stat = diagStats[d];
-          if (stat) {
-            const dayCount = stat.dates.size;
-            return `<td>${stat.count}/${dayCount}</td>`;
+        const cells = [`<td>${name}</td>`];
+
+        allowedDiagonals.forEach(diagonal => {
+          const data = diagonals[diagonal];
+          if (data) {
+            const count = data.count;
+            const days = data.days.size;
+            if (percentageMode) {
+              const percent = ((count / totalDiagonal[diagonal]) * 100).toFixed(1);
+              cells.push(`<td>${percent}%</td>`);
+            } else {
+              cells.push(`<td>${count}/${days}</td>`);
+            }
           } else {
-            return `<td>-</td>`;
+            cells.push('<td>0/0</td>');
           }
-        }).join('');
+        });
+
+        row.innerHTML = cells.join('');
         tbody.appendChild(row);
       });
+    }
 
-      table.appendChild(tbody);
-      container.appendChild(table);
-      document.body.appendChild(container);
+    function populateMonthSelect() {
+      const select = document.getElementById('month-select');
+      const now = new Date();
+      const monthsToShow = 12;
+
+      for (let i = 0; i < monthsToShow; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+        const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        const option = new Option(capitalizedLabel, value);
+        select.appendChild(option);
+      }
     }
 
     async function updateStats() {
+      const selectedMonth = document.getElementById('month-select').value;
+      const [year, month] = selectedMonth.split('-').map(Number);
+
       const combinedData = await fetchData();
-      const lastDate = getLastDate(combinedData);
-      const lastDateStr = lastDate.toISOString().split('T')[0];
 
       const filtered = combinedData.filter(record => {
-        const recDate = record.date?.split(' ')[0] || '';
-        return recDate === lastDateStr;
+        const dateStr = record.date?.split(' ')[0];
+        if (!dateStr) return false;
+
+        const date = new Date(dateStr);
+        return date.getFullYear() === year && date.getMonth() + 1 === month;
       });
 
-      const stats = calculateStats(filtered);
-      displayCombinedStats(stats);
-      document.getElementById('date-info').textContent = `DATE: ${lastDateStr}`;
-
-      const fullStats = calculateStatsByPersonAndDiagonal(combinedData);
-      displayDiagonalSummaryTable(fullStats);
+      const { result, totalDiagonal } = calculateDiagonalStats(filtered);
+      displayDiagonalStats(result, totalDiagonal);
     }
 
-    setInterval(updateStats, 6000);
-    updateStats();
+    document.addEventListener('DOMContentLoaded', () => {
+      populateMonthSelect();
+      document.getElementById('month-select').addEventListener('change', updateStats);
+      document.getElementById('toggle-diagonal-table').addEventListener('click', () => {
+        document.getElementById('diagonal-table-container').classList.toggle('hidden');
+      });
+      document.getElementById('toggle-percentage').addEventListener('click', () => {
+        percentageMode = !percentageMode;
+        updateStats();
+      });
+      updateStats();
+    });
+
+    setInterval(updateStats, 5000);
   </script>
 </body>
 </html>
