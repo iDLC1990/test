@@ -1,144 +1,297 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <title>Combined Stats</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCDR LIVE DATA 2025 - Диагонали</title>
   <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 10%;
+      background-color: #111;
+      flex-wrap: wrap;
+    }
+    .header h1 {
+      margin: 0;
+      color: #008080;
+      font-size: 24px;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .date-info {
+      color: #008080;
+      font-size: 20px;
+    }
+    select, button {
+      padding: 6px 10px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: none;
+    }
+    button {
+      background-color: #008080;
+      color: #000;
+      font-weight: bold;
+    }
+    #stats-container {
+      width: 90%;
+      margin: 24px auto;
+      overflow-x: auto;
+    }
     table {
-      border-collapse: collapse;
       width: 100%;
+      border-collapse: collapse;
+      background-color: #222;
+      color: #fff;
     }
     th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
+      border: 1px solid #555;
+      padding: 8px 10px;
+      text-align: center;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    th {
+      background-color: #008080;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td:first-child {
+      background-color: #111;
+      font-weight: bold;
+      text-align: left;
+      position: sticky;
+      left: 0;
+      z-index: 1;
     }
   </style>
 </head>
 <body>
-  <h1>Combined Stats</h1>
-  <div>
-    <label for="month">Month:</label>
-    <select id="month">
-      <option value="1">January</option>
-      <option value="2">February</option>
-      <option value="3">March</option>
-      <option value="4">April</option>
-      <option value="5">May</option>
-      <option value="6">June</option>
-      <option value="7">July</option>
-      <option value="8">August</option>
-      <option value="9">September</option>
-      <option value="10">October</option>
-      <option value="11">November</option>
-      <option value="12">December</option>
-    </select>
-
-    <label for="year">Year:</label>
-    <input type="number" id="year" value="2024">
-
-    <button id="loadButton">Load Stats</button>
+  <div class="header">
+    <h1>LCDR LIVE DATA 2025 - Диагонали</h1>
+    <div class="controls">
+      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
+      <select id="month-select"></select>
+      <button id="toggle-percent">Показать %</button>
+    </div>
   </div>
 
-  <table id="combinedTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Calls</th>
-        <th>SMS</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div id="stats-container">
+    <!-- Таблица появится здесь -->
+  </div>
 
-  <script>
-    const spreadsheetId = '1jNzpK3QMu-ywJ_UhVu9rFC0ubqjUpkK1i2_4EVoyESE';
-    const apiKey = 'AIzaSyA-rX2G_gvYlDRjeEphqLwYfKQtLhrfSQU';
+<script>
+  const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+  const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+  const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-    async function getData(sheetName) {
-      const range = `'${sheetName}'!A1:Z1000`;
-      const url = `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?key=${apiKey}`;
-      const response = await fetch(url);
-      const data = await response.json();
-      return data.values || [];
-    }
+  const diagonals = [86, 85, 75, 70, 65, 55, 50, 49, 43, 42, 34, 32, 27, 24];
 
-    function calculateCombinedStats(data) {
-      const stats = {};
-
-      data.forEach(record => {
-        const { name, status } = record;
-        if (!name || !status) return;
-
-        if (!stats[name]) {
-          stats[name] = { calls: 0, sms: 0 };
-        }
-
-        if (status.toLowerCase() === 'дзвінок' || status.toLowerCase() === 'дзвінок-вдало') {
-          stats[name].calls += 1;
-        } else if (status.toLowerCase() === 'смс') {
-          stats[name].sms += 1;
-        }
-      });
-
-      return stats;
-    }
-
-    function displayCombinedStats(stats) {
-      const tbody = document.querySelector('#combinedTable tbody');
-      tbody.innerHTML = '';
-
-      for (const name in stats) {
-        const row = document.createElement('tr');
-        const nameCell = document.createElement('td');
-        const callsCell = document.createElement('td');
-        const smsCell = document.createElement('td');
-
-        nameCell.textContent = name;
-        callsCell.textContent = stats[name].calls;
-        smsCell.textContent = stats[name].sms;
-
-        row.appendChild(nameCell);
-        row.appendChild(callsCell);
-        row.appendChild(smsCell);
-        tbody.appendChild(row);
+  // Функция для определения диагонали из серийного номера
+  function getDiagonal(serial) {
+    if (!serial) return null;
+    serial = serial.toUpperCase();
+    for (const d of diagonals) {
+      if (serial.includes(d.toString())) {
+        return d;
       }
     }
+    return null;
+  }
 
-    document.getElementById('loadButton').addEventListener('click', async () => {
-      const month = parseInt(document.getElementById('month').value);
-      const year = parseInt(document.getElementById('year').value);
+  // Получаем данные с листа по имени
+  async function getData(sheetName) {
+    try {
+      const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+      const data = await response.json();
+      return data.values || [];
+    } catch (err) {
+      console.error('Ошибка получения данных:', err);
+      return [];
+    }
+  }
 
-      const sheet1Data = await getData('FI Station KOVALCHYK Y.');
-      const sheet2Data = await getData('FI Station 2 ULANOVYCH.R');
+  // Получаем объединённые данные из двух листов
+  async function fetchData() {
+    // Листы с данными
+    const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
+    let combined = [];
 
-      console.log('Sheet1 Header:', sheet1Data[0]);
-      console.log('Sheet1 First Row:', sheet1Data[1]);
-      console.log('Sheet2 Header:', sheet2Data[0]);
-      console.log('Sheet2 First Row:', sheet2Data[1]);
-
-      const combined = [...sheet1Data.slice(1), ...sheet2Data.slice(1)];
-
-      // Предположим: дата = A (0), статус = E (4), имя = F (5)
-      const combinedData = combined.map(row => ({
+    for (const name of sheetNames) {
+      const sheetData = await getData(name);
+      if (sheetData.length < 2) continue; // если нет данных
+      // Индексы столбцов по твоему описанию: A=date(0), C=serial(2), E=status(4), F=person(5)
+      const headers = sheetData[0];
+      const rows = sheetData.slice(1);
+      const mapped = rows.map(row => ({
         date: row[0] || '',
+        serial: row[2] || '',
         status: row[4] || '',
-        name: row[5] || ''
+        person: row[5] || ''
       }));
+      combined = combined.concat(mapped);
+    }
+    return combined;
+  }
 
-      const filtered = combinedData.filter(record => {
-        if (!record.date || !record.name) return false;
-        const dateStr = record.date.split(' ')[0];
-        const date = new Date(dateStr);
-        return date.getFullYear() === year && date.getMonth() + 1 === month;
+  // Вычисляем статистику по человеку и диагонали
+  function calculateDetailedStats(data) {
+    const stats = {};
+
+    data.forEach(({ date, serial, status, person }) => {
+      const diagonal = getDiagonal(serial);
+      if (!diagonal) return;
+
+      if (!stats[person]) stats[person] = {};
+      if (!stats[person][diagonal]) stats[person][diagonal] = { OK: 0, NDF: 0, days: new Set() };
+
+      if (status === 'OK') stats[person][diagonal].OK++;
+      if (status === 'NDF') stats[person][diagonal].NDF++;
+
+      const day = date.split(' ')[0];
+      if (day) stats[person][diagonal].days.add(day);
+    });
+
+    return stats;
+  }
+
+  // Отрисовка таблицы
+  function renderTable(stats, showPercent = false) {
+    const container = document.getElementById('stats-container');
+    container.innerHTML = '';
+
+    const people = Object.keys(stats).sort();
+    if (people.length === 0) {
+      container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
+      return;
+    }
+
+    const table = document.createElement('table');
+
+    // Заголовок
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    headerRow.appendChild(document.createElement('th')); // пустая верхняя левая
+
+    diagonals.forEach(d => {
+      const th = document.createElement('th');
+      th.textContent = d;
+      headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Считаем сумму по диагоналям для % отображения
+    const totalPerDiagonal = {};
+    diagonals.forEach(d => totalPerDiagonal[d] = 0);
+    people.forEach(person => {
+      diagonals.forEach(d => {
+        if (stats[person][d]) {
+          totalPerDiagonal[d] += stats[person][d].OK + stats[person][d].NDF;
+        }
+      });
+    });
+
+    const tbody = document.createElement('tbody');
+
+    people.forEach(person => {
+      const tr = document.createElement('tr');
+
+      // Фамилия
+      const tdName = document.createElement('td');
+      tdName.textContent = person;
+      tr.appendChild(tdName);
+
+      diagonals.forEach(d => {
+        const td = document.createElement('td');
+        if (stats[person][d]) {
+          const s = stats[person][d];
+          const daysCount = s.days.size;
+
+          if (showPercent) {
+            const sum = s.OK + s.NDF;
+            const percent = totalPerDiagonal[d] ? ((sum / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
+            td.textContent = percent + '%';
+          } else {
+            td.textContent = `${s.OK}/${s.NDF} / ${daysCount}`;
+          }
+        } else {
+          td.textContent = '-';
+        }
+        tr.appendChild(td);
       });
 
-      console.log('Filtered Records:', filtered);
-
-      const stats = calculateCombinedStats(filtered);
-      console.log('Final Stats:', stats);
-
-      displayCombinedStats(stats);
+      tbody.appendChild(tr);
     });
-  </script>
+
+    table.appendChild(tbody);
+    container.appendChild(table);
+  }
+
+  // Заполнение селекта месяцами
+  function populateMonthSelect() {
+    const select = document.getElementById('month-select');
+    const now = new Date();
+    const monthsToShow = 12;
+
+    for (let i = 0; i < monthsToShow; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      const option = new Option(capitalizedLabel, value);
+      select.appendChild(option);
+    }
+  }
+
+  let showPercent = false;
+
+  async function updateDetailedStats() {
+    const selectedMonth = document.getElementById('month-select').value;
+    const [year, month] = selectedMonth.split('-').map(Number);
+
+    const combinedData = await fetchData();
+
+    const filtered = combinedData.filter(record => {
+      const dateStr = record.date?.split(' ')[0];
+      if (!dateStr) return false;
+
+      const date = new Date(dateStr);
+      return date.getFullYear() === year && (date.getMonth() + 1) === month;
+    });
+
+    const stats = calculateDetailedStats(filtered);
+    renderTable(stats, showPercent);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    populateMonthSelect();
+    document.getElementById('month-select').addEventListener('change', updateDetailedStats);
+    document.getElementById('toggle-percent').addEventListener('click', () => {
+      showPercent = !showPercent;
+      updateDetailedStats();
+      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать абсолютные' : 'Показать %';
+    });
+
+    updateDetailedStats();
+
+    // Автообновление каждые 10 секунд (можно убрать или настроить)
+    setInterval(updateDetailedStats, 10000);
+  });
+</script>
 </body>
 </html>
