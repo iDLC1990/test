@@ -1,150 +1,284 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="pl">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LCDR LIVE DATA</title>
   <style>
-    body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0}
-    .header{display:flex;justify-content:space-between;align-items:center;padding:20px 10%;background:#111}
-    .header h1{margin:0;color:#008080;font-size:24px}
-    .date-info{color:#008080;font-size:24px}
-    .table-container{width:90%;margin:24px auto}
-    .table-button{width:100%;padding:12px;background:#008080;color:#000;font-weight:700;
-                  font-size:18px;border:0;border-radius:10px 10px 0 0;text-align:left;cursor:pointer}
-    table{width:100%;border-collapse:collapse;margin-bottom:24px}
-    th,td{border:1px solid #fff;padding:10px;text-align:center}
-    th{background:#222;color:#0ff}
-    .total-row{font-weight:700;background:#333;color:#0ff}
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 10%;
+      background-color: #111;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #008080;
+      font-size: 24px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .date-info {
+      color: #008080;
+      font-size: 20px;
+    }
+
+    select {
+      padding: 6px 10px;
+      font-size: 16px;
+    }
+
+    .table-container {
+      width: 80%;
+      margin: 24px auto;
+    }
+
+    .table-button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      background-color: #008080;
+      color: #000;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      text-align: left;
+      padding-left: 20px;
+      margin-bottom: -1px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #555;
+      border-radius: 0 0 10px 10px;
+    }
+
+    table, th, td {
+      border: 1px solid #fff;
+    }
+
+    th, td {
+      padding: 10px;
+      text-align: center;
+    }
+
+    th {
+      font-weight: bold;
+      font-size: 16px;
+    }
+
+    td {
+      font-size: 16px;
+    }
+
+    .total-row {
+      font-weight: bold;
+      background-color: #333;
+      color: #00ffcc;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>LCDR LIVE DATA 2025</h1>
-    <div class="date-info" id="date-info">DATE: --</div>
+    <div class="controls">
+      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
+      <select id="month-select"></select>
+    </div>
   </div>
 
   <div class="table-container">
-    <button class="table-button">FI Station Overview</button>
+    <button class="table-button">Podsumowanie FI Station</button>
     <table id="combined-table">
       <thead>
         <tr>
-          <th>NAME</th><th>NDF</th><th>OK</th><th>WAITING</th>
-          <th>SCRAP&nbsp;TTL</th><th>SCRAP&nbsp;PNLA</th><th>SUMA&nbsp;CALKOWITA</th>
+          <th>NAME</th>
+          <th>NDF</th>
+          <th>OK</th>
+          <th>WAITING</th>
+          <th>SCRAP TTL</th>
+          <th>SCRAP PNLA</th>
+          <th>SUMA CAŁKOWITA</th>
+          <th>DNI OBECNOŚCI</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
-
-    <button class="table-button">Диагонали по&nbsp;сотрудникам</button>
-    <table id="diagonal-table">
-      <thead id="diag-head"></thead>
-      <tbody id="diag-body"></tbody>
-    </table>
   </div>
 
   <script>
-    /* --- Параметры Google Sheets ------------------------------------------ */
-    const apiKey   = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-    const sheetId  = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-    /* --- Список поддерживаемых диагоналей -------------------------------- */
-    const diagonals = [86,85,75,70,65,55,50,49,43,42,34,32,27,24];
+    async function getData(sheetName) {
+      try {
+        const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
+        const data = await response.json();
+        return data.values;
+      } catch (err) {
+        console.error(`Błąd pobierania danych: ${err}`);
+        return [];
+      }
+    }
 
-    /* --- Вспомогательные функции ----------------------------------------- */
-    const extractDiagonal = serial =>
-      diagonals.find(d => serial.toUpperCase().includes(String(d))) || null;
-
-    const getData = async sheet =>
-      (await fetch(`${sheetURL}${sheet}?key=${apiKey}`)).json();
-
-    /* --- Чтение и пред-обработка всех листов ----------------------------- */
     async function fetchData() {
-      const [s1,s2] = await Promise.all([
-        getData('FI Station KOVALCHYK Y.'),
-        getData('FI Station 2 ULANOVYCH.R')
-      ]);
-      return [...s1.values.slice(1), ...s2.values.slice(1)];  // пропускаем заголовок
+      const sheet1Data = await getData('FI Station KOVALCHYK Y.');
+      const sheet2Data = await getData('FI Station 2 ULANOVYCH.R');
+      const combined = [...sheet1Data.slice(1), ...sheet2Data.slice(1)];
+      return combined.map(row => ({
+        name: row[5],
+        status: row[4],
+        date: row[0]
+      }));
     }
 
-    const getLastDate = rows =>
-      new Date(Math.max(...rows.map(r=>new Date((r[0]||'').split(' ')[0]))));
+    function calculateStats(data) {
+      const stats = {};
+      const presenceMap = {};
 
-    /* --- Таблица 1: агрегат по статусам ---------------------------------- */
-    function calcStatusStats(rows) {
-      const out = {};
-      rows.forEach(r=>{
-        const name=r[5], st=r[4];
-        if(!name) return;
-        out[name] ??= {NDF:0,OK:0,WAITING:0,'SCRAP TTL':0,'SCRAP PNLA':0,total:0};
-        if(st==='NDF')        out[name].NDF++;
-        else if(st==='OK')    out[name].OK++;
-        else if(st==='WAITING')      out[name].WAITING++;
-        else if(st==='SCRAP TTL')    out[name]['SCRAP TTL']++;
-        else if(st==='SCRAP PNLA')   out[name]['SCRAP PNLA']++;
-        out[name].total++;
-      });
-      return out;
-    }
+      data.forEach(({ name, status, date }) => {
+        if (!stats[name]) {
+          stats[name] = {
+            NDF: 0,
+            OK: 0,
+            WAITING: 0,
+            'SCRAP TTL': 0,
+            'SCRAP PNLA': 0,
+            total: 0,
+            presentDays: 0
+          };
+          presenceMap[name] = new Set();
+        }
 
-    function renderStatusTable(stats){
-      const tb=document.querySelector('#combined-table tbody');
-      tb.innerHTML='';
-      const sum={NDF:0,OK:0,WAITING:0,'SCRAP TTL':0,'SCRAP PNLA':0,total:0};
-      Object.entries(stats).forEach(([name,s])=>{
-        tb.insertAdjacentHTML('beforeend',`
-          <tr><td>${name}</td><td>${s.NDF}</td><td>${s.OK}</td><td>${s.WAITING}</td>
-              <td>${s['SCRAP TTL']}</td><td>${s['SCRAP PNLA']}</td><td>${s.total}</td></tr>`);
-        for(const k in sum) sum[k]+=s[k];
-      });
-      tb.insertAdjacentHTML('beforeend',`
-        <tr class="total-row"><td>SUMA</td><td>${sum.NDF}</td><td>${sum.OK}</td>
-            <td>${sum.WAITING}</td><td>${sum['SCRAP TTL']}</td>
-            <td>${sum['SCRAP PNLA']}</td><td>${sum.total}</td></tr>`);
-    }
+        if (status === 'NDF') stats[name].NDF++;
+        if (status === 'OK') stats[name].OK++;
+        if (status === 'WAITING') stats[name].WAITING++;
+        if (status === 'SCRAP TTL') stats[name]['SCRAP TTL']++;
+        if (status === 'SCRAP PNLA') stats[name]['SCRAP PNLA']++;
+        stats[name].total++;
 
-    /* --- Таблица 2: Фамилии × Диагонали ---------------------------------- */
-    function buildDiagonalTable(rows){
-      /* сбор данных */
-      const people={}, totals={};
-      rows.forEach(r=>{
-        const date=(r[0]||'').split(' ')[0];
-        const serial=r[2]||'', name=r[5], st=r[4];
-        const d=extractDiagonal(serial);
-        if(!name||!d||!(st==='OK'||st==='NDF')) return;
-        people[name] ??= {};
-        people[name][d] ??= {cnt:0,days:new Set()};
-        people[name][d].cnt++;  people[name][d].days.add(date);
-        totals[d]=(totals[d]||0)+1;
+        const dayOnly = date?.split(' ')[0];
+        if (dayOnly) presenceMap[name].add(dayOnly);
       });
 
-      const usedDiags=Object.keys(totals).map(Number).sort((a,b)=>a-b);
-      /* head */
-      const head=document.getElementById('diag-head');
-      head.innerHTML=`<tr><th>Фамилия</th>${usedDiags.map(d=>`<th>${d}"</th>`).join('')}</tr>`;
-      /* body */
-      const body=document.getElementById('diag-body'); body.innerHTML='';
-      Object.entries(people).forEach(([n,ds])=>{
-        const row=`<td>${n}</td>`+
-          usedDiags.map(d=>ds[d]?`${ds[d].cnt}/${ds[d].days.size}`:'').join('');
-        body.insertAdjacentHTML('beforeend',`<tr>${row}</tr>`);
+      for (const name in presenceMap) {
+        stats[name].presentDays = presenceMap[name].size;
+      }
+
+      return stats;
+    }
+
+    function displayCombinedStats(stats) {
+      const tbody = document.querySelector('#combined-table tbody');
+      tbody.innerHTML = '';
+
+      const totals = {
+        NDF: 0,
+        OK: 0,
+        WAITING: 0,
+        'SCRAP TTL': 0,
+        'SCRAP PNLA': 0,
+        total: 0
+      };
+
+      const sortedStats = Object.entries(stats).sort(([, a], [, b]) => b.OK - a.OK);
+
+      sortedStats.forEach(([name, data]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${name}</td>
+          <td>${data.NDF}</td>
+          <td>${data.OK}</td>
+          <td>${data.WAITING}</td>
+          <td>${data['SCRAP TTL']}</td>
+          <td>${data['SCRAP PNLA']}</td>
+          <td>${data.total}</td>
+          <td>${data.presentDays}</td>
+        `;
+        tbody.appendChild(row);
+
+        totals.NDF += data.NDF;
+        totals.OK += data.OK;
+        totals.WAITING += data.WAITING;
+        totals['SCRAP TTL'] += data['SCRAP TTL'];
+        totals['SCRAP PNLA'] += data['SCRAP PNLA'];
+        totals.total += data.total;
       });
-      /* итоговая строка */
-      body.insertAdjacentHTML('beforeend',
-        `<tr class="total-row"><td>ИТОГО</td>${usedDiags.map(d=>totals[d]).join('</td><td>')}</td></tr>`);
+
+      const totalRow = document.createElement('tr');
+      totalRow.className = 'total-row';
+      totalRow.innerHTML = `
+        <td>SUMA</td>
+        <td>${totals.NDF}</td>
+        <td>${totals.OK}</td>
+        <td>${totals.WAITING}</td>
+        <td>${totals['SCRAP TTL']}</td>
+        <td>${totals['SCRAP PNLA']}</td>
+        <td>${totals.total}</td>
+        <td>-</td>
+      `;
+      tbody.appendChild(totalRow);
     }
 
-    /* --- Основной цикл обновления ---------------------------------------- */
-    async function update() {
-      const rows = await fetchData();
-      const last = getLastDate(rows).toISOString().split('T')[0];
-      document.getElementById('date-info').textContent=`DATE: ${last}`;
+    function populateMonthSelect() {
+      const select = document.getElementById('month-select');
+      const now = new Date();
+      const monthsToShow = 12;
 
-      renderStatusTable(calcStatusStats(rows.filter(r=>r[0]?.startsWith(last))));
-      buildDiagonalTable(rows);            // сводная по всем датам
+      for (let i = 0; i < monthsToShow; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+        const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        const option = new Option(capitalizedLabel, value);
+        select.appendChild(option);
+      }
     }
 
-    update(); setInterval(update,6000);
+    async function updateStats() {
+      const selectedMonth = document.getElementById('month-select').value;
+      const [year, month] = selectedMonth.split('-').map(Number);
+
+      const combinedData = await fetchData();
+
+      const filtered = combinedData.filter(record => {
+        const dateStr = record.date?.split(' ')[0];
+        if (!dateStr) return false;
+
+        const date = new Date(dateStr);
+        return date.getFullYear() === year && date.getMonth() + 1 === month;
+      });
+
+      const stats = calculateStats(filtered);
+      displayCombinedStats(stats);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      populateMonthSelect();
+      document.getElementById('month-select').addEventListener('change', updateStats);
+      updateStats();
+    });
+
+    setInterval(updateStats, 5000);
   </script>
 </body>
 </html>
