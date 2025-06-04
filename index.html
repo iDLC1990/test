@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA 2025 - Диагонали</title>
+  <title>test</title>
   <style>
     body {
       background-color: #000;
@@ -90,7 +90,7 @@
 </head>
 <body>
   <div class="header">
-    <h1>LCDR LIVE DATA 2025 - Диагонали</h1>
+    <h1>LCDR LIVE DATA 2025 - </h1>
     <div class="controls">
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
@@ -99,7 +99,7 @@
   </div>
 
   <div id="stats-container">
-    <!-- Таблица появится здесь -->
+    
   </div>
 
 <script>
@@ -107,7 +107,7 @@
   const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
   const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-  // Диагонали с их кодами (трёхцифровые части после 3 букв)
+  
   const diagonalMapClean = {
     '860': 86,
     '850': 85,
@@ -134,7 +134,7 @@
     '240': 24
   };
 
-  // Диагонали для отображения (убраны 49,42,34 и добавлен 58)
+  
   const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
   function getDiagonal(serial) {
@@ -223,7 +223,7 @@
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Считаем сумму по каждой диагонали (OK+NDF) у всех людей
+    
     const totalPerDiagonal = {};
     diagonals.forEach(d => totalPerDiagonal[d] = 0);
 
@@ -237,7 +237,7 @@
       });
     });
 
-    // Создаем тело таблицы
+    
     const tbody = document.createElement('tbody');
 
     people.forEach(person => {
@@ -278,7 +278,7 @@
 
     table.appendChild(tbody);
 
-    // Нижняя строка с суммами
+    
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
 
