@@ -107,6 +107,7 @@
   const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
   const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
+  // Диагонали с их кодами (трёхцифровые части после 3 букв)
   const diagonalMapClean = {
     '860': 86,
     '850': 85,
@@ -114,18 +115,13 @@
     '700': 70,
     '650': 65,
     '580': 58,
-    '585': 58,
+    '575': 58,
     '550': 55,
     '500': 50,
     '490': 50,
     '430': 43,
     '420': 43,
     '390': 43,
-    '340': 32,
-    '335': 32,
-    '338': 32,
-    '328': 32,
-    '325': 32,
     '320': 32,
     '318': 32,
     '315': 32,
@@ -138,21 +134,13 @@
     '240': 24
   };
 
+  // Диагонали для отображения (убраны 49,42,34 и добавлен 58)
+  const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
+
   function getDiagonal(serial) {
-    if (!serial) return null;
-    serial = serial.toLowerCase();
-
-    const firstThree = serial.substr(0, 3);
-    if (!/^[a-z]{3}$/.test(firstThree)) {
-      return null;
-    }
-
-    const digits = serial.substr(3, 3);
-    if (!/^\d{3}$/.test(digits)) {
-      return null;
-    }
-
-    return diagonalMapClean[digits] || null;
+    if (!serial || serial.length < 6) return null;
+    const key = serial.substring(3, 6); // 4-6 символы (индексы 3,4,5)
+    return diagonalMapClean[key] || null;
   }
 
   async function getData(sheetName) {
@@ -217,16 +205,16 @@
 
     const table = document.createElement('table');
 
+    // Заголовок
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th')); // пустая левая верхняя
+    headerRow.appendChild(document.createElement('th')); // пустая верхняя левая
 
     diagonals.forEach(d => {
       const th = document.createElement('th');
       th.textContent = d;
       headerRow.appendChild(th);
     });
-
     const thTotalCol = document.createElement('th');
     thTotalCol.textContent = 'Итого';
     thTotalCol.classList.add('total-col');
@@ -235,9 +223,21 @@
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
+    // Считаем сумму по каждой диагонали (OK+NDF) у всех людей
     const totalPerDiagonal = {};
     diagonals.forEach(d => totalPerDiagonal[d] = 0);
 
+    people.forEach(person => {
+      diagonals.forEach(d => {
+        if (stats[person][d]) {
+          const s = stats[person][d];
+          const sumOKNDF = s.OK + s.NDF;
+          totalPerDiagonal[d] += sumOKNDF;
+        }
+      });
+    });
+
+    // Создаем тело таблицы
     const tbody = document.createElement('tbody');
 
     people.forEach(person => {
@@ -255,7 +255,6 @@
           const daysCount = s.days.size;
           const sumOKNDF = s.OK + s.NDF;
           totalPersonSum += sumOKNDF;
-          totalPerDiagonal[d] += sumOKNDF;
 
           if (showPercent) {
             const percent = totalPerDiagonal[d] ? ((sumOKNDF / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
@@ -279,6 +278,7 @@
 
     table.appendChild(tbody);
 
+    // Нижняя строка с суммами
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
 
@@ -307,9 +307,6 @@
 
     container.appendChild(table);
   }
-
-  // Обновленный массив диагоналей без 49, 42 и 34
-  const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
   function populateMonthSelect() {
     const select = document.getElementById('month-select');
@@ -352,13 +349,11 @@
     document.getElementById('toggle-percent').addEventListener('click', () => {
       showPercent = !showPercent;
       updateDetailedStats();
-      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать абсолютные' : 'Показать %';
+      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : 'Показать %';
     });
-
     updateDetailedStats();
-
-    setInterval(updateDetailedStats, 10000);
   });
 </script>
+
 </body>
 </html>
