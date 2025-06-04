@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LCDR LIVE DATA</title>
   <style>
     body {
@@ -17,30 +16,6 @@
       align-items: center;
       padding: 20px 10%;
       background-color: #111;
-      flex-wrap: wrap;
-    }
-
-    .header h1 {
-      margin: 0;
-      color: #008080;
-      font-size: 24px;
-    }
-
-    .controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    .date-info {
-      color: #008080;
-      font-size: 20px;
-    }
-
-    select {
-      padding: 6px 10px;
-      font-size: 16px;
     }
 
     .table-container {
@@ -49,228 +24,216 @@
     }
 
     .table-button {
-      display: block;
-      width: 100%;
-      padding: 12px;
       background-color: #008080;
       color: #000;
-      font-size: 18px;
       font-weight: bold;
+      font-size: 18px;
+      padding: 12px;
       border: none;
       border-radius: 10px 10px 0 0;
-      cursor: pointer;
+      width: 100%;
       text-align: left;
-      padding-left: 20px;
-      margin-bottom: -1px;
+      cursor: pointer;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      background-color: #555;
-      border-radius: 0 0 10px 10px;
-    }
-
-    table, th, td {
-      border: 1px solid #fff;
+      margin-bottom: 24px;
     }
 
     th, td {
+      border: 1px solid #fff;
       padding: 10px;
       text-align: center;
     }
 
     th {
-      font-weight: bold;
-      font-size: 16px;
-    }
-
-    td {
-      font-size: 16px;
+      background-color: #222;
+      color: #0ff;
     }
 
     .total-row {
       font-weight: bold;
       background-color: #333;
-      color: #00ffcc;
-    }
-
-    .hidden {
-      display: none;
-    }
-
-    .percentage-mode td {
-      color: #ffcc00;
+      color: #0ff;
     }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>LCDR LIVE DATA 2025</h1>
-    <div class="controls">
-      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
-      <select id="month-select"></select>
-      <button id="toggle-percentage">Pokaż %</button>
-    </div>
+    <div class="date-info" id="date-info">DATE: --</div>
   </div>
 
   <div class="table-container">
-    <button class="table-button" id="toggle-diagonal-table">Podsumowanie Diagonalne</button>
-    <div id="diagonal-table-container" class="hidden">
-      <table id="diagonal-table">
-        <thead>
-          <tr>
-            <th>NAME</th>
-            <th>86</th>
-            <th>85</th>
-            <th>75</th>
-            <th>70</th>
-            <th>65</th>
-            <th>55</th>
-            <th>50</th>
-            <th>49</th>
-            <th>43</th>
-            <th>42</th>
-            <th>34</th>
-            <th>32</th>
-            <th>27</th>
-            <th>24</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <button class="table-button">FI Station Overview</button>
+    <table id="combined-table">
+      <thead>
+        <tr>
+          <th>NAME</th>
+          <th>NDF</th>
+          <th>OK</th>
+          <th>WAITING</th>
+          <th>SCRAP TTL</th>
+          <th>SCRAP PNLA</th>
+          <th>SUMA CALKOWITA</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <button class="table-button">Диагонали по сотрудникам</button>
+    <table id="diagonal-table">
+      <thead id="diag-head"></thead>
+      <tbody id="diag-body"></tbody>
+    </table>
   </div>
 
   <script>
     const apiKey = 'YOUR_API_KEY';
     const sheetId = 'YOUR_SHEET_ID';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
-    const allowedDiagonals = ['86', '85', '75', '70', '65', '55', '50', '49', '43', '42', '34', '32', '27', '24'];
-    let percentageMode = false;
+
+    const diagonals = [86, 85, 75, 70, 65, 55, 50, 49, 43, 42, 34, 32, 27, 24];
+
+    function extractDiagonal(serial) {
+      const upper = serial.toUpperCase();
+      for (let d of diagonals) {
+        if (upper.includes(String(d))) return d;
+      }
+      return null;
+    }
 
     async function getData(sheetName) {
-      try {
-        const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
-        const data = await response.json();
-        return data.values;
-      } catch (err) {
-        console.error(`Błąd pobierania danych: ${err}`);
-        return [];
-      }
+      const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
+      const data = await response.json();
+      return data.values;
     }
 
     async function fetchData() {
-      const sheet1Data = await getData('FI Station KOVALCHYK Y.');
-      const sheet2Data = await getData('FI Station 2 ULANOVYCH.R');
-      const combined = [...sheet1Data.slice(1), ...sheet2Data.slice(1)];
-      return combined.map(row => ({
-        name: row[5],
-        status: row[4],
-        date: row[0],
-        serial: row[2]
-      }));
+      const sheet1 = await getData('FI Station KOVALCHYK Y.');
+      const sheet2 = await getData('FI Station 2 ULANOVYCH.R');
+      return [...sheet1.slice(1), ...sheet2.slice(1)];
     }
 
-    function calculateDiagonalStats(data) {
-      const result = {};
-      const totalDiagonal = {};
+    function getLastDate(data) {
+      const dates = data.map(r => r[0]?.split(' ')[0]).filter(Boolean);
+      return new Date(Math.max(...dates.map(d => new Date(d))));
+    }
 
-      data.forEach(({ name, serial, status, date }) => {
-        const diagonal = serial?.trim();
-        if (!['OK', 'NDF'].includes(status) || !allowedDiagonals.includes(diagonal)) return;
-
-        if (!result[name]) result[name] = {};
-        if (!result[name][diagonal]) result[name][diagonal] = { count: 0, days: new Set() };
-
-        result[name][diagonal].count += 1;
-
-        const dayOnly = date?.split(' ')[0];
-        if (dayOnly) result[name][diagonal].days.add(dayOnly);
-
-        if (!totalDiagonal[diagonal]) totalDiagonal[diagonal] = 0;
-        totalDiagonal[diagonal]++;
+    function calculateStats(data) {
+      const stats = {};
+      data.forEach(row => {
+        const name = row[5];
+        const status = row[4];
+        if (!stats[name]) {
+          stats[name] = { NDF: 0, OK: 0, WAITING: 0, 'SCRAP TTL': 0, 'SCRAP PNLA': 0, total: 0 };
+        }
+        if (status === 'NDF') stats[name].NDF++;
+        if (status === 'OK') stats[name].OK++;
+        if (status === 'WAITING') stats[name].WAITING++;
+        if (status === 'SCRAP TTL') stats[name]['SCRAP TTL']++;
+        if (status === 'SCRAP PNLA') stats[name]['SCRAP PNLA']++;
+        stats[name].total++;
       });
-
-      return { result, totalDiagonal };
+      return stats;
     }
 
-    function displayDiagonalStats(stats, totalDiagonal) {
-      const tbody = document.querySelector('#diagonal-table tbody');
+    function displayCombinedStats(stats) {
+      const tbody = document.querySelector('#combined-table tbody');
       tbody.innerHTML = '';
+      const total = { NDF: 0, OK: 0, WAITING: 0, 'SCRAP TTL': 0, 'SCRAP PNLA': 0, total: 0 };
 
-      Object.entries(stats).forEach(([name, diagonals]) => {
+      Object.entries(stats).forEach(([name, s]) => {
         const row = document.createElement('tr');
-        const cells = [`<td>${name}</td>`];
-
-        allowedDiagonals.forEach(diagonal => {
-          const data = diagonals[diagonal];
-          if (data) {
-            const count = data.count;
-            const days = data.days.size;
-            if (percentageMode) {
-              const percent = ((count / totalDiagonal[diagonal]) * 100).toFixed(1);
-              cells.push(`<td>${percent}%</td>`);
-            } else {
-              cells.push(`<td>${count}/${days}</td>`);
-            }
-          } else {
-            cells.push('<td>0/0</td>');
-          }
-        });
-
-        row.innerHTML = cells.join('');
+        row.innerHTML = `
+          <td>${name}</td>
+          <td>${s.NDF}</td>
+          <td>${s.OK}</td>
+          <td>${s.WAITING}</td>
+          <td>${s['SCRAP TTL']}</td>
+          <td>${s['SCRAP PNLA']}</td>
+          <td>${s.total}</td>
+        `;
         tbody.appendChild(row);
+        Object.keys(total).forEach(k => total[k] += s[k]);
       });
+
+      const tRow = document.createElement('tr');
+      tRow.className = 'total-row';
+      tRow.innerHTML = `
+        <td>SUMA</td>
+        <td>${total.NDF}</td>
+        <td>${total.OK}</td>
+        <td>${total.WAITING}</td>
+        <td>${total['SCRAP TTL']}</td>
+        <td>${total['SCRAP PNLA']}</td>
+        <td>${total.total}</td>
+      `;
+      tbody.appendChild(tRow);
     }
 
-    function populateMonthSelect() {
-      const select = document.getElementById('month-select');
-      const now = new Date();
-      const monthsToShow = 12;
+    function buildDiagonalTable(data) {
+      const people = {};
+      const allDiags = new Set();
 
-      for (let i = 0; i < monthsToShow; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-        const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
-        const option = new Option(capitalizedLabel, value);
-        select.appendChild(option);
-      }
+      data.forEach(row => {
+        const date = row[0]?.split(' ')[0];
+        const serial = row[2] || '';
+        const name = row[5];
+        const status = row[4];
+        const diag = extractDiagonal(serial);
+        if (!name || !diag || !(status === 'OK' || status === 'NDF')) return;
+
+        if (!people[name]) people[name] = {};
+        if (!people[name][diag]) people[name][diag] = { count: 0, days: new Set() };
+        people[name][diag].count++;
+        people[name][diag].days.add(date);
+        allDiags.add(diag);
+      });
+
+      const sortedDiags = Array.from(allDiags).sort((a, b) => a - b);
+      const head = document.getElementById('diag-head');
+      const body = document.getElementById('diag-body');
+      head.innerHTML = `<tr><th>Фамилия</th>${sortedDiags.map(d => `<th>${d}"</th>`).join('')}</tr>`;
+      body.innerHTML = '';
+
+      const total = {};
+
+      Object.entries(people).forEach(([name, diagData]) => {
+        const row = document.createElement('tr');
+        let cells = `<td>${name}</td>`;
+        sortedDiags.forEach(d => {
+          const cell = diagData[d] ? `${diagData[d].count}/${diagData[d].days.size}` : '';
+          if (!total[d]) total[d] = 0;
+          total[d] += diagData[d]?.count || 0;
+          cells += `<td>${cell}</td>`;
+        });
+        row.innerHTML = cells;
+        body.appendChild(row);
+      });
+
+      const totalRow = document.createElement('tr');
+      totalRow.className = 'total-row';
+      totalRow.innerHTML = `<td>ИТОГО</td>` + sortedDiags.map(d => `<td>${total[d]}</td>`).join('');
+      body.appendChild(totalRow);
     }
 
     async function updateStats() {
-      const selectedMonth = document.getElementById('month-select').value;
-      const [year, month] = selectedMonth.split('-').map(Number);
+      const rawData = await fetchData();
+      const lastDate = getLastDate(rawData);
+      const dateStr = lastDate.toISOString().split('T')[0];
+      document.getElementById('date-info').textContent = `DATE: ${dateStr}`;
 
-      const combinedData = await fetchData();
-
-      const filtered = combinedData.filter(record => {
-        const dateStr = record.date?.split(' ')[0];
-        if (!dateStr) return false;
-
-        const date = new Date(dateStr);
-        return date.getFullYear() === year && date.getMonth() + 1 === month;
-      });
-
-      const { result, totalDiagonal } = calculateDiagonalStats(filtered);
-      displayDiagonalStats(result, totalDiagonal);
+      const filtered = rawData.filter(row => row[0]?.startsWith(dateStr));
+      const stats = calculateStats(filtered);
+      displayCombinedStats(stats);
+      buildDiagonalTable(rawData); // <- вся таблица, не только за день
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      populateMonthSelect();
-      document.getElementById('month-select').addEventListener('change', updateStats);
-      document.getElementById('toggle-diagonal-table').addEventListener('click', () => {
-        document.getElementById('diagonal-table-container').classList.toggle('hidden');
-      });
-      document.getElementById('toggle-percentage').addEventListener('click', () => {
-        percentageMode = !percentageMode;
-        updateStats();
-      });
-      updateStats();
-    });
-
-    setInterval(updateStats, 5000);
+    setInterval(updateStats, 6000);
+    updateStats();
   </script>
 </body>
 </html>
