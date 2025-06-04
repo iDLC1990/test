@@ -4,60 +4,17 @@
   <meta charset="UTF-8" />
   <title>LCDR LIVE DATA</title>
   <style>
-    body {
-      background-color: #000;
-      color: #fff;
-      font-family: Arial, sans-serif;
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 20px 10%;
-      background-color: #111;
-    }
-
-    .table-container {
-      width: 90%;
-      margin: 24px auto;
-    }
-
-    .table-button {
-      background-color: #008080;
-      color: #000;
-      font-weight: bold;
-      font-size: 18px;
-      padding: 12px;
-      border: none;
-      border-radius: 10px 10px 0 0;
-      width: 100%;
-      text-align: left;
-      cursor: pointer;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-bottom: 24px;
-    }
-
-    th, td {
-      border: 1px solid #fff;
-      padding: 10px;
-      text-align: center;
-    }
-
-    th {
-      background-color: #222;
-      color: #0ff;
-    }
-
-    .total-row {
-      font-weight: bold;
-      background-color: #333;
-      color: #0ff;
-    }
+    body{background:#000;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0}
+    .header{display:flex;justify-content:space-between;align-items:center;padding:20px 10%;background:#111}
+    .header h1{margin:0;color:#008080;font-size:24px}
+    .date-info{color:#008080;font-size:24px}
+    .table-container{width:90%;margin:24px auto}
+    .table-button{width:100%;padding:12px;background:#008080;color:#000;font-weight:700;
+                  font-size:18px;border:0;border-radius:10px 10px 0 0;text-align:left;cursor:pointer}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px}
+    th,td{border:1px solid #fff;padding:10px;text-align:center}
+    th{background:#222;color:#0ff}
+    .total-row{font-weight:700;background:#333;color:#0ff}
   </style>
 </head>
 <body>
@@ -71,19 +28,14 @@
     <table id="combined-table">
       <thead>
         <tr>
-          <th>NAME</th>
-          <th>NDF</th>
-          <th>OK</th>
-          <th>WAITING</th>
-          <th>SCRAP TTL</th>
-          <th>SCRAP PNLA</th>
-          <th>SUMA CALKOWITA</th>
+          <th>NAME</th><th>NDF</th><th>OK</th><th>WAITING</th>
+          <th>SCRAP&nbsp;TTL</th><th>SCRAP&nbsp;PNLA</th><th>SUMA&nbsp;CALKOWITA</th>
         </tr>
       </thead>
       <tbody></tbody>
     </table>
 
-    <button class="table-button">Диагонали по сотрудникам</button>
+    <button class="table-button">Диагонали по&nbsp;сотрудникам</button>
     <table id="diagonal-table">
       <thead id="diag-head"></thead>
       <tbody id="diag-body"></tbody>
@@ -91,149 +43,108 @@
   </div>
 
   <script>
-    const apiKey = 'YOUR_API_KEY';
-    const sheetId = 'YOUR_SHEET_ID';
+    /* --- Параметры Google Sheets ------------------------------------------ */
+    const apiKey   = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId  = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-    const diagonals = [86, 85, 75, 70, 65, 55, 50, 49, 43, 42, 34, 32, 27, 24];
+    /* --- Список поддерживаемых диагоналей -------------------------------- */
+    const diagonals = [86,85,75,70,65,55,50,49,43,42,34,32,27,24];
 
-    function extractDiagonal(serial) {
-      const upper = serial.toUpperCase();
-      for (let d of diagonals) {
-        if (upper.includes(String(d))) return d;
-      }
-      return null;
-    }
+    /* --- Вспомогательные функции ----------------------------------------- */
+    const extractDiagonal = serial =>
+      diagonals.find(d => serial.toUpperCase().includes(String(d))) || null;
 
-    async function getData(sheetName) {
-      const response = await fetch(`${sheetURL}${sheetName}?key=${apiKey}`);
-      const data = await response.json();
-      return data.values;
-    }
+    const getData = async sheet =>
+      (await fetch(`${sheetURL}${sheet}?key=${apiKey}`)).json();
 
+    /* --- Чтение и пред-обработка всех листов ----------------------------- */
     async function fetchData() {
-      const sheet1 = await getData('FI Station KOVALCHYK Y.');
-      const sheet2 = await getData('FI Station 2 ULANOVYCH.R');
-      return [...sheet1.slice(1), ...sheet2.slice(1)];
+      const [s1,s2] = await Promise.all([
+        getData('FI Station KOVALCHYK Y.'),
+        getData('FI Station 2 ULANOVYCH.R')
+      ]);
+      return [...s1.values.slice(1), ...s2.values.slice(1)];  // пропускаем заголовок
     }
 
-    function getLastDate(data) {
-      const dates = data.map(r => r[0]?.split(' ')[0]).filter(Boolean);
-      return new Date(Math.max(...dates.map(d => new Date(d))));
-    }
+    const getLastDate = rows =>
+      new Date(Math.max(...rows.map(r=>new Date((r[0]||'').split(' ')[0]))));
 
-    function calculateStats(data) {
-      const stats = {};
-      data.forEach(row => {
-        const name = row[5];
-        const status = row[4];
-        if (!stats[name]) {
-          stats[name] = { NDF: 0, OK: 0, WAITING: 0, 'SCRAP TTL': 0, 'SCRAP PNLA': 0, total: 0 };
-        }
-        if (status === 'NDF') stats[name].NDF++;
-        if (status === 'OK') stats[name].OK++;
-        if (status === 'WAITING') stats[name].WAITING++;
-        if (status === 'SCRAP TTL') stats[name]['SCRAP TTL']++;
-        if (status === 'SCRAP PNLA') stats[name]['SCRAP PNLA']++;
-        stats[name].total++;
+    /* --- Таблица 1: агрегат по статусам ---------------------------------- */
+    function calcStatusStats(rows) {
+      const out = {};
+      rows.forEach(r=>{
+        const name=r[5], st=r[4];
+        if(!name) return;
+        out[name] ??= {NDF:0,OK:0,WAITING:0,'SCRAP TTL':0,'SCRAP PNLA':0,total:0};
+        if(st==='NDF')        out[name].NDF++;
+        else if(st==='OK')    out[name].OK++;
+        else if(st==='WAITING')      out[name].WAITING++;
+        else if(st==='SCRAP TTL')    out[name]['SCRAP TTL']++;
+        else if(st==='SCRAP PNLA')   out[name]['SCRAP PNLA']++;
+        out[name].total++;
       });
-      return stats;
+      return out;
     }
 
-    function displayCombinedStats(stats) {
-      const tbody = document.querySelector('#combined-table tbody');
-      tbody.innerHTML = '';
-      const total = { NDF: 0, OK: 0, WAITING: 0, 'SCRAP TTL': 0, 'SCRAP PNLA': 0, total: 0 };
-
-      Object.entries(stats).forEach(([name, s]) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td>${name}</td>
-          <td>${s.NDF}</td>
-          <td>${s.OK}</td>
-          <td>${s.WAITING}</td>
-          <td>${s['SCRAP TTL']}</td>
-          <td>${s['SCRAP PNLA']}</td>
-          <td>${s.total}</td>
-        `;
-        tbody.appendChild(row);
-        Object.keys(total).forEach(k => total[k] += s[k]);
+    function renderStatusTable(stats){
+      const tb=document.querySelector('#combined-table tbody');
+      tb.innerHTML='';
+      const sum={NDF:0,OK:0,WAITING:0,'SCRAP TTL':0,'SCRAP PNLA':0,total:0};
+      Object.entries(stats).forEach(([name,s])=>{
+        tb.insertAdjacentHTML('beforeend',`
+          <tr><td>${name}</td><td>${s.NDF}</td><td>${s.OK}</td><td>${s.WAITING}</td>
+              <td>${s['SCRAP TTL']}</td><td>${s['SCRAP PNLA']}</td><td>${s.total}</td></tr>`);
+        for(const k in sum) sum[k]+=s[k];
       });
-
-      const tRow = document.createElement('tr');
-      tRow.className = 'total-row';
-      tRow.innerHTML = `
-        <td>SUMA</td>
-        <td>${total.NDF}</td>
-        <td>${total.OK}</td>
-        <td>${total.WAITING}</td>
-        <td>${total['SCRAP TTL']}</td>
-        <td>${total['SCRAP PNLA']}</td>
-        <td>${total.total}</td>
-      `;
-      tbody.appendChild(tRow);
+      tb.insertAdjacentHTML('beforeend',`
+        <tr class="total-row"><td>SUMA</td><td>${sum.NDF}</td><td>${sum.OK}</td>
+            <td>${sum.WAITING}</td><td>${sum['SCRAP TTL']}</td>
+            <td>${sum['SCRAP PNLA']}</td><td>${sum.total}</td></tr>`);
     }
 
-    function buildDiagonalTable(data) {
-      const people = {};
-      const allDiags = new Set();
-
-      data.forEach(row => {
-        const date = row[0]?.split(' ')[0];
-        const serial = row[2] || '';
-        const name = row[5];
-        const status = row[4];
-        const diag = extractDiagonal(serial);
-        if (!name || !diag || !(status === 'OK' || status === 'NDF')) return;
-
-        if (!people[name]) people[name] = {};
-        if (!people[name][diag]) people[name][diag] = { count: 0, days: new Set() };
-        people[name][diag].count++;
-        people[name][diag].days.add(date);
-        allDiags.add(diag);
+    /* --- Таблица 2: Фамилии × Диагонали ---------------------------------- */
+    function buildDiagonalTable(rows){
+      /* сбор данных */
+      const people={}, totals={};
+      rows.forEach(r=>{
+        const date=(r[0]||'').split(' ')[0];
+        const serial=r[2]||'', name=r[5], st=r[4];
+        const d=extractDiagonal(serial);
+        if(!name||!d||!(st==='OK'||st==='NDF')) return;
+        people[name] ??= {};
+        people[name][d] ??= {cnt:0,days:new Set()};
+        people[name][d].cnt++;  people[name][d].days.add(date);
+        totals[d]=(totals[d]||0)+1;
       });
 
-      const sortedDiags = Array.from(allDiags).sort((a, b) => a - b);
-      const head = document.getElementById('diag-head');
-      const body = document.getElementById('diag-body');
-      head.innerHTML = `<tr><th>Фамилия</th>${sortedDiags.map(d => `<th>${d}"</th>`).join('')}</tr>`;
-      body.innerHTML = '';
-
-      const total = {};
-
-      Object.entries(people).forEach(([name, diagData]) => {
-        const row = document.createElement('tr');
-        let cells = `<td>${name}</td>`;
-        sortedDiags.forEach(d => {
-          const cell = diagData[d] ? `${diagData[d].count}/${diagData[d].days.size}` : '';
-          if (!total[d]) total[d] = 0;
-          total[d] += diagData[d]?.count || 0;
-          cells += `<td>${cell}</td>`;
-        });
-        row.innerHTML = cells;
-        body.appendChild(row);
+      const usedDiags=Object.keys(totals).map(Number).sort((a,b)=>a-b);
+      /* head */
+      const head=document.getElementById('diag-head');
+      head.innerHTML=`<tr><th>Фамилия</th>${usedDiags.map(d=>`<th>${d}"</th>`).join('')}</tr>`;
+      /* body */
+      const body=document.getElementById('diag-body'); body.innerHTML='';
+      Object.entries(people).forEach(([n,ds])=>{
+        const row=`<td>${n}</td>`+
+          usedDiags.map(d=>ds[d]?`${ds[d].cnt}/${ds[d].days.size}`:'').join('');
+        body.insertAdjacentHTML('beforeend',`<tr>${row}</tr>`);
       });
-
-      const totalRow = document.createElement('tr');
-      totalRow.className = 'total-row';
-      totalRow.innerHTML = `<td>ИТОГО</td>` + sortedDiags.map(d => `<td>${total[d]}</td>`).join('');
-      body.appendChild(totalRow);
+      /* итоговая строка */
+      body.insertAdjacentHTML('beforeend',
+        `<tr class="total-row"><td>ИТОГО</td>${usedDiags.map(d=>totals[d]).join('</td><td>')}</td></tr>`);
     }
 
-    async function updateStats() {
-      const rawData = await fetchData();
-      const lastDate = getLastDate(rawData);
-      const dateStr = lastDate.toISOString().split('T')[0];
-      document.getElementById('date-info').textContent = `DATE: ${dateStr}`;
+    /* --- Основной цикл обновления ---------------------------------------- */
+    async function update() {
+      const rows = await fetchData();
+      const last = getLastDate(rows).toISOString().split('T')[0];
+      document.getElementById('date-info').textContent=`DATE: ${last}`;
 
-      const filtered = rawData.filter(row => row[0]?.startsWith(dateStr));
-      const stats = calculateStats(filtered);
-      displayCombinedStats(stats);
-      buildDiagonalTable(rawData); // <- вся таблица, не только за день
+      renderStatusTable(calcStatusStats(rows.filter(r=>r[0]?.startsWith(last))));
+      buildDiagonalTable(rows);            // сводная по всем датам
     }
 
-    setInterval(updateStats, 100000);
-    updateStats();
+    update(); setInterval(update,6000);
   </script>
 </body>
 </html>
