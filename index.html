@@ -107,17 +107,45 @@
   const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
   const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-  const diagonals = [86, 85, 75, 70, 65, 55, 50, 49, 43, 42, 34, 32, 27, 24];
+  const diagonalMapClean = {
+    '860': 86,
+    '850': 85,
+    '750': 75,
+    '700': 70,
+    '650': 65,
+    '550': 55,
+    '500': 50,
+    '490': 50,
+    '430': 43,
+    '420': 43,
+    '390': 43,
+    '320': 32,
+    '318': 32,
+    '315': 32,
+    '278': 27,
+    '275': 27,
+    '270': 27,
+    '238': 24,
+    '235': 24,
+    '230': 24,
+    '240': 24
+  };
 
   function getDiagonal(serial) {
     if (!serial) return null;
-    serial = serial.toUpperCase();
-    for (const d of diagonals) {
-      if (serial.includes(d.toString())) {
-        return d;
-      }
+    serial = serial.toLowerCase();
+
+    const firstThree = serial.substr(0, 3);
+    if (!/^[a-z]{3}$/.test(firstThree)) {
+      return null;
     }
-    return null;
+
+    const digits = serial.substr(3, 3);
+    if (!/^\d{3}$/.test(digits)) {
+      return null;
+    }
+
+    return diagonalMapClean[digits] || null;
   }
 
   async function getData(sheetName) {
@@ -182,17 +210,16 @@
 
     const table = document.createElement('table');
 
-    // Заголовок
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th')); // пустая верхняя левая
+    headerRow.appendChild(document.createElement('th')); // пустая левая верхняя
 
     diagonals.forEach(d => {
       const th = document.createElement('th');
       th.textContent = d;
       headerRow.appendChild(th);
     });
-    // Добавляем заголовок "Итого" справа
+
     const thTotalCol = document.createElement('th');
     thTotalCol.textContent = 'Итого';
     thTotalCol.classList.add('total-col');
@@ -201,11 +228,9 @@
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Подсчёт общей суммы по диагоналям (для нижней строки)
     const totalPerDiagonal = {};
     diagonals.forEach(d => totalPerDiagonal[d] = 0);
 
-    // Создаем тело таблицы
     const tbody = document.createElement('tbody');
 
     people.forEach(person => {
@@ -237,7 +262,6 @@
         tr.appendChild(td);
       });
 
-      // Итого по человеку справа
       const tdTotal = document.createElement('td');
       tdTotal.textContent = showPercent ? '' : totalPersonSum;
       tdTotal.classList.add('total-col');
@@ -248,7 +272,6 @@
 
     table.appendChild(tbody);
 
-    // Добавляем нижний ряд с суммами по диагоналям
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
 
@@ -261,7 +284,6 @@
       const td = document.createElement('td');
       td.classList.add('total-col');
       if (showPercent) {
-        // При показе %, внизу можно оставить пустое или 100%
         td.textContent = '100%';
       } else {
         td.textContent = totalPerDiagonal[d];
@@ -269,7 +291,6 @@
       footerRow.appendChild(td);
     });
 
-    // Пустая ячейка справа внизу, под "Итого" по людям
     const emptyFooterCell = document.createElement('td');
     emptyFooterCell.classList.add('total-col');
     footerRow.appendChild(emptyFooterCell);
@@ -279,6 +300,9 @@
 
     container.appendChild(table);
   }
+
+  // Обновленный массив диагоналей без 49, 42 и 34
+  const diagonals = [86, 85, 75, 70, 65, 55, 50, 43, 32, 27, 24];
 
   function populateMonthSelect() {
     const select = document.getElementById('month-select');
