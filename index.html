@@ -260,7 +260,7 @@
             const percent = totalPerDiagonal[d] ? ((sumOKNDF / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
             td.textContent = percent + '%';
           } else {
-            td.textContent =sumOKNDF;
+            td.textContent =     ' ${sumOKNDF} / ${daysCount}';
           }
         } else {
           td.textContent = '-';
