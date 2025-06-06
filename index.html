@@ -259,7 +259,7 @@
           if (e) sum += e.OK + e.NDF;
         });
         const td = document.createElement('td');
-        td.textContent = sum;
+        td.textContent = `${s.OK}/${s.NDF} / ${daysCount}`;
         td.classList.add('total-col');
         footerRow.appendChild(td);
       });
