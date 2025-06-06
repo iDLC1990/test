@@ -33,17 +33,11 @@
       color: #008080;
       font-size: 20px;
     }
-    select, button {
+    select {
       padding: 6px 10px;
       font-size: 16px;
-      cursor: pointer;
       border-radius: 5px;
       border: none;
-    }
-    button {
-      background-color: #008080;
-      color: #000;
-      font-weight: bold;
     }
     #stats-container {
       width: 90%;
@@ -94,7 +88,6 @@
     <div class="controls">
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
-      <button id="toggle-percent">Показать %</button>
     </div>
   </div>
 
@@ -169,7 +162,7 @@
       return stats;
     }
 
-    function renderTable(stats, showPercent = false) {
+    function renderTable(stats) {
       const container = document.getElementById('stats-container');
       container.innerHTML = '';
 
@@ -304,8 +297,6 @@
       }
     }
 
-    let showPercent = false;
-
     async function updateDetailedStats() {
       const selectedMonth = document.getElementById('month-select').value;
       const [year, month] = selectedMonth.split('-').map(Number);
@@ -320,17 +311,12 @@
       });
 
       const stats = calculateDetailedStats(filtered);
-      renderTable(stats, showPercent);
+      renderTable(stats);
     }
 
     document.addEventListener('DOMContentLoaded', () => {
       populateMonthSelect();
       document.getElementById('month-select').addEventListener('change', updateDetailedStats);
-      document.getElementById('toggle-percent').addEventListener('click', () => {
-        showPercent = !showPercent;
-        updateDetailedStats();
-        document.getElementById('toggle-percent').textContent = showPercent ? 'Показать абсолютные' : 'Показать %';
-      });
       updateDetailedStats();
       setInterval(updateDetailedStats, 10000);
     });
