@@ -98,182 +98,298 @@
     </div>
   </div>
 
-  <div id="stats-container"></div>
+  <div id="stats-container">
+    <!-- Таблица появится здесь -->
+  </div>
 
 <script>
-const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+  const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+  const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+  const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
-
-function getDiagonal(serial) {
-  if (!serial) return null;
-  serial = serial.toUpperCase();
-  const prefix = serial.slice(0, 3);
-  const digits = serial.slice(3, 6);
-
-  if (!/^[A-Z]{3}$/.test(prefix)) return null;
-  if (!/^\d{3}$/.test(digits)) return null;
-
-  const map = {
-    '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
-    '550': 55, '545': 55, '500': 50, '498': 50, '495': 50, '490': 50,
-    '438': 43, '435': 43, '430': 43, '428': 43, '425': 43, '420': 43,
-    '418': 43, '415': 43, '398': 43, '395': 43, '390': 43,
-    '348': 32, '345': 32, '340': 32, '328': 32, '325': 32, '320': 32,
-    '318': 32, '315': 32,
-    '278': 27, '275': 27, '270': 27,
-    '248': 24, '245': 24, '240': 24, '238': 24, '235': 24, '230': 24
+  const diagonalsMap = {
+    '860': 86, '850': 85, '750': 75, '700': 70,
+    '650': 65, '580': 58, '575': 58, '550': 55,
+    '545': 55, '500': 50, '498': 50, '495': 50,
+    '490': 50, '438': 43, '435': 43, '430': 43,
+    '428': 43, '425': 43, '420': 43, '418': 43,
+    '415': 43, '398': 43, '395': 43, '390': 43,
+    '348': 32, '345': 32, '340': 32, '328': 32,
+    '325': 32, '320': 32, '318': 32, '315': 32,
+    '278': 27, '275': 27, '270': 27, '248': 24,
+    '245': 24, '240': 24, '238': 24, '235': 24,
+    '230': 24
   };
-  return map[digits] || null;
-}
 
-async function getData(sheetName) {
-  try {
-    const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
-    const data = await response.json();
-    return data.values || [];
-  } catch (err) {
-    console.error('Ошибка получения данных:', err);
-    return [];
-  }
-}
+  const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
-async function fetchData() {
-  const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
-  let combined = [];
+  function getDiagonal(serial) {
+    if (!serial) return null;
+    serial = serial.toUpperCase();
 
-  for (const name of sheetNames) {
-    const sheetData = await getData(name);
-    if (sheetData.length < 2) continue;
-    const rows = sheetData.slice(1);
-    const mapped = rows.map(row => ({
-      date: row[0] || '',
-      serial: row[2] || '',
-      status: row[4] || '',
-      person: row[5] || ''
-    }));
-    combined = combined.concat(mapped);
-  }
-  return combined;
-}
+    // Серийный номер должен быть минимум 6 символов (3 буквы + 3 цифры)
+    if (serial.length < 6) return null;
 
-function calculateDetailedStats(data) {
-  const stats = {};
+    const prefix = serial.slice(0, 3);
+    const code = serial.slice(3, 6);
 
-  data.forEach(({ date, serial, status, person }) => {
-    const diagonal = getDiagonal(serial);
-    if (!diagonal) return;
+    // Проверяем, что первые 3 символа — буквы (любые, не только GBV, TBV, JBV)
+    if (!/^[A-Z]{3}$/.test(prefix)) return null;
 
-    if (!stats[person]) stats[person] = {};
-    if (!stats[person][diagonal]) stats[person][diagonal] = { count: 0, days: new Set() };
+    // Проверяем, что следующие 3 символа — цифры и есть в карте диагоналей
+    if (!/^\d{3}$/.test(code)) return null;
 
-    stats[person][diagonal].count++;
-
-    const day = date.split(' ')[0];
-    if (day) stats[person][diagonal].days.add(day);
-  });
-
-  return stats;
-}
-
-function renderTable(stats, showPercent = false) {
-  const container = document.getElementById('stats-container');
-  container.innerHTML = '';
-
-  const people = Object.keys(stats).sort();
-  if (people.length === 0) {
-    container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
-    return;
+    const diagonal = diagonalsMap[code];
+    return diagonal || null;
   }
 
-  const table = document.createElement('table');
-  const thead = document.createElement('thead');
-  const headerRow = document.createElement('tr');
+  async function getData(sheetName) {
+    try {
+      const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+      const data = await response.json();
+      return data.values || [];
+    } catch (err) {
+      console.error('Ошибка получения данных:', err);
+      return [];
+    }
+  }
 
-  headerRow.innerHTML = '<th></th>' + diagonals.map(d => `<th>${d}</th>`).join('') + '<th class="total-col">Итого</th><th>Дней</th><th>% в мес</th>';
-  thead.appendChild(headerRow);
-  table.appendChild(thead);
+  async function fetchData() {
+    const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
+    let combined = [];
 
-  const tbody = document.createElement('tbody');
-  const totalPerDiagonal = {};
-  diagonals.forEach(d => totalPerDiagonal[d] = 0);
-  let grandTotal = 0;
+    for (const name of sheetNames) {
+      const sheetData = await getData(name);
+      if (sheetData.length < 2) continue;
+      const rows = sheetData.slice(1);
+      const mapped = rows.map(row => ({
+        date: row[0] || '',
+        serial: row[2] || '',
+        status: row[4] || '',
+        person: row[5] || ''
+      }));
+      combined = combined.concat(mapped);
+    }
+    return combined;
+  }
 
-  people.forEach(person => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${person}</td>`;
+  function calculateDetailedStats(data) {
+    const stats = {};
 
-    let personTotal = 0;
-    let personDays = new Set();
+    data.forEach(({ date, serial, status, person }) => {
+      const diagonal = getDiagonal(serial);
+      if (!diagonal) return;
 
-    diagonals.forEach(d => {
-      const stat = stats[person][d];
-      const count = stat ? stat.count : 0;
-      personTotal += count;
-      if (stat) stat.days.forEach(day => personDays.add(day));
-      totalPerDiagonal[d] += count;
-      tr.innerHTML += `<td>${count || '-'}</td>`;
+      if (!stats[person]) stats[person] = {};
+      if (!stats[person][diagonal]) stats[person][diagonal] = { OK: 0, NDF: 0, days: new Set() };
+
+      if (status === 'OK') stats[person][diagonal].OK++;
+      if (status === 'NDF') stats[person][diagonal].NDF++;
+
+      const day = date.split(' ')[0];
+      if (day) stats[person][diagonal].days.add(day);
     });
 
-    grandTotal += personTotal;
-    const percent = grandTotal ? ((personTotal / grandTotal) * 100).toFixed(1) : '0.0';
-    tr.innerHTML += `<td class="total-col">${personTotal}</td><td>${personDays.size}</td><td>${percent}%</td>`;
-    tbody.appendChild(tr);
-  });
-
-  table.appendChild(tbody);
-
-  const tfoot = document.createElement('tfoot');
-  const footerRow = document.createElement('tr');
-  footerRow.innerHTML = '<td>Итого</td>' + diagonals.map(d => `<td class="total-col">${totalPerDiagonal[d]}</td>`).join('') + '<td class="total-col"></td><td></td><td></td>';
-  tfoot.appendChild(footerRow);
-  table.appendChild(tfoot);
-
-  container.appendChild(table);
-}
-
-function populateMonthSelect() {
-  const select = document.getElementById('month-select');
-  const now = new Date();
-  for (let i = 0; i < 12; i++) {
-    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-    select.appendChild(new Option(label.charAt(0).toUpperCase() + label.slice(1), value));
+    return stats;
   }
-}
 
-let showPercent = false;
+  function renderTable(stats, showPercent = false) {
+    const container = document.getElementById('stats-container');
+    container.innerHTML = '';
 
-async function updateDetailedStats() {
-  const selectedMonth = document.getElementById('month-select').value;
-  const [year, month] = selectedMonth.split('-').map(Number);
-  const combinedData = await fetchData();
+    const people = Object.keys(stats).sort();
+    if (people.length === 0) {
+      container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
+      return;
+    }
 
-  const filtered = combinedData.filter(({ date }) => {
-    const dateStr = date?.split(' ')[0];
-    if (!dateStr) return false;
-    const d = new Date(dateStr);
-    return d.getFullYear() === year && (d.getMonth() + 1) === month;
-  });
+    const table = document.createElement('table');
 
-  const stats = calculateDetailedStats(filtered);
-  renderTable(stats, showPercent);
-}
+    // Заголовок
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
 
-document.addEventListener('DOMContentLoaded', () => {
-  populateMonthSelect();
-  document.getElementById('month-select').addEventListener('change', updateDetailedStats);
-  document.getElementById('toggle-percent').addEventListener('click', () => {
-    showPercent = !showPercent;
+    // Первая ячейка с текстом "Name"
+    const thName = document.createElement('th');
+    thName.textContent = 'Name';
+    thName.style.backgroundColor = '#008080'; // единый цвет заголовка
+    headerRow.appendChild(thName);
+
+    diagonals.forEach(d => {
+      const th = document.createElement('th');
+      th.textContent = d;
+      th.style.backgroundColor = '#008080'; // единый цвет заголовка
+      headerRow.appendChild(th);
+    });
+
+    const thDay = document.createElement('th');
+    thDay.textContent = 'Day';
+    thDay.style.backgroundColor = '#008080';
+    headerRow.appendChild(thDay);
+
+    const thPercentPerMonth = document.createElement('th');
+    thPercentPerMonth.textContent = '% Per Month';
+    thPercentPerMonth.style.backgroundColor = '#008080';
+    headerRow.appendChild(thPercentPerMonth);
+
+    // Итого
+    const thTotalCol = document.createElement('th');
+    thTotalCol.textContent = 'Итого';
+    thTotalCol.classList.add('total-col');
+    headerRow.appendChild(thTotalCol);
+
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    const totalPerDiagonal = {};
+    diagonals.forEach(d => totalPerDiagonal[d] = 0);
+
+    const tbody = document.createElement('tbody');
+
+    people.forEach(person => {
+      const tr = document.createElement('tr');
+
+      // Имя
+      const tdName = document.createElement('td');
+      tdName.textContent = person;
+      tr.appendChild(tdName);
+
+      let totalPersonSum = 0;
+      let totalDaysSet = new Set();
+
+      diagonals.forEach(d => {
+        const td = document.createElement('td');
+        if (stats[person][d]) {
+          const s = stats[person][d];
+          const sumOKNDF = s.OK + s.NDF;
+          totalPersonSum += sumOKNDF;
+          totalPerDiagonal[d] += sumOKNDF;
+          s.days.forEach(day => totalDaysSet.add(day));
+
+          if (showPercent) {
+            const percent = totalPerDiagonal[d] ? ((sumOKNDF / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
+            td.textContent = percent + '%';
+          } else {
+            td.textContent = sumOKNDF; // показываем сумму OK и NDF
+          }
+        } else {
+          td.textContent = '-';
+        }
+        tr.appendChild(td);
+      });
+
+      // Day — количество уникальных дней для данного человека
+      const tdDay = document.createElement('td');
+      tdDay.textContent = totalDaysSet.size;
+      tr.appendChild(tdDay);
+
+      // % per month — отношение итога этого человека к сумме всех по диагоналям
+      const tdPercentPerMonth = document.createElement('td');
+      const totalAll = Object.values(stats).reduce((acc, personStats) => {
+        return acc + Object.values(personStats).reduce((acc2, diagStats) => acc2 + diagStats.OK + diagStats.NDF, 0);
+      }, 0);
+      tdPercentPerMonth.textContent = totalAll ? ((totalPersonSum / totalAll) * 100).toFixed(1) + '%' : '0.0%';
+      tr.appendChild(tdPercentPerMonth);
+
+      // Итого
+      const tdTotal = document.createElement('td');
+      tdTotal.textContent = showPercent ? '' : totalPersonSum;
+      tdTotal.classList.add('total-col');
+      tr.appendChild(tdTotal);
+
+      tbody.appendChild(tr);
+    });
+
+    table.appendChild(tbody);
+
+    // Нижняя строка с суммами
+    const tfoot = document.createElement('tfoot');
+    const footerRow = document.createElement('tr');
+
+    const footerNameCell = document.createElement('td');
+    footerNameCell.textContent = 'Итого';
+    footerNameCell.style.textAlign = 'left';
+    footerRow.appendChild(footerNameCell);
+
+    diagonals.forEach(d => {
+      const td = document.createElement('td');
+      td.classList.add('total-col');
+      if (showPercent) {
+        td.textContent = '100%';
+      } else {
+        td.textContent = totalPerDiagonal[d];
+      }
+      footerRow.appendChild(td);
+    });
+
+    // Пустые ячейки для Day и % per month в футере
+    const tdEmptyDay = document.createElement('td');
+    tdEmptyDay.classList.add('total-col');
+    footerRow.appendChild(tdEmptyDay);
+
+    const tdEmptyPercent = document.createElement('td');
+    tdEmptyPercent.classList.add('total-col');
+    footerRow.appendChild(tdEmptyPercent);
+
+    // Пустая ячейка справа для итого по людям
+    const emptyFooterCell = document.createElement('td');
+    emptyFooterCell.classList.add('total-col');
+    footerRow.appendChild(emptyFooterCell);
+
+    tfoot.appendChild(footerRow);
+    table.appendChild(tfoot);
+
+    container.appendChild(table);
+  }
+
+  function populateMonthSelect() {
+    const select = document.getElementById('month-select');
+    const now = new Date();
+    const monthsToShow = 12;
+
+    for (let i = 0; i < monthsToShow; i++) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+      const option = new Option(capitalizedLabel, value);
+      select.appendChild(option);
+    }
+  }
+
+  let showPercent = false;
+
+  async function updateDetailedStats() {
+    const selectedMonth = document.getElementById('month-select').value;
+    const [year, month] = selectedMonth.split('-').map(Number);
+
+    const combinedData = await fetchData();
+
+    const filtered = combinedData.filter(record => {
+      const dateStr = record.date?.split(' ')[0];
+      if (!dateStr) return false;
+
+      const date = new Date(dateStr);
+      return date.getFullYear() === year && (date.getMonth() + 1) === month;
+    });
+
+    const stats = calculateDetailedStats(filtered);
+    renderTable(stats, showPercent);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    populateMonthSelect();
+    document.getElementById('month-select').addEventListener('change', updateDetailedStats);
+    document.getElementById('toggle-percent').addEventListener('click', () => {
+      showPercent = !showPercent;
+      updateDetailedStats();
+      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать абсолютные' : 'Показать %';
+    });
+
     updateDetailedStats();
-    document.getElementById('toggle-percent').textContent = showPercent ? 'Показать абсолютные' : 'Показать %';
+
+    setInterval(updateDetailedStats, 10000);
   });
-  updateDetailedStats();
-  setInterval(updateDetailedStats, 10000);
-});
 </script>
 </body>
 </html>
