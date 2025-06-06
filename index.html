@@ -98,48 +98,26 @@
     </div>
   </div>
 
-  <div id="stats-container">
-    
-  </div>
+  <div id="stats-container"></div>
 
 <script>
   const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
   const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
   const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-  
   const diagonalMapClean = {
-    '860': 86,
-    '850': 85,
-    '750': 75,
-    '700': 70,
-    '650': 65,
-    '580': 58,
-    '575': 58,
-    '550': 55,
-    '500': 50,
-    '490': 50,
-    '430': 43,
-    '420': 43,
-    '390': 43,
-    '320': 32,
-    '318': 32,
-    '315': 32,
-    '278': 27,
-    '275': 27,
-    '270': 27,
-    '238': 24,
-    '235': 24,
-    '230': 24,
-    '240': 24
+    '860': 86, '850': 85, '750': 75, '700': 70, '650': 65,
+    '580': 58, '575': 58, '550': 55, '500': 50, '490': 50,
+    '430': 43, '420': 43, '390': 43, '320': 32, '318': 32,
+    '315': 32, '278': 27, '275': 27, '270': 27, '238': 24,
+    '235': 24, '230': 24, '240': 24
   };
 
-  
   const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
   function getDiagonal(serial) {
     if (!serial || serial.length < 6) return null;
-    const key = serial.substring(3, 6); // 4-6 символы (индексы 3,4,5)
+    const key = serial.substring(3, 6);
     return diagonalMapClean[key] || null;
   }
 
@@ -175,7 +153,6 @@
 
   function calculateDetailedStats(data) {
     const stats = {};
-
     data.forEach(({ date, serial, status, person }) => {
       const diagonal = getDiagonal(serial);
       if (!diagonal) return;
@@ -189,9 +166,11 @@
       const day = date.split(' ')[0];
       if (day) stats[person][diagonal].days.add(day);
     });
-
     return stats;
   }
+
+  let showPercent = false;
+  let showAverageAsPercent = false;
 
   function renderTable(stats, showPercent = false) {
     const container = document.getElementById('stats-container');
@@ -205,25 +184,38 @@
 
     const table = document.createElement('table');
 
-    // Заголовок
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th')); // пустая верхняя левая
+    headerRow.appendChild(document.createElement('th'));
 
     diagonals.forEach(d => {
       const th = document.createElement('th');
       th.textContent = d;
       headerRow.appendChild(th);
     });
+
     const thTotalCol = document.createElement('th');
     thTotalCol.textContent = 'Итого';
     thTotalCol.classList.add('total-col');
     headerRow.appendChild(thTotalCol);
 
+    const thDays = document.createElement('th');
+    thDays.textContent = '1 day';
+    headerRow.appendChild(thDays);
+
+    const thAvg = document.createElement('th');
+    const avgBtn = document.createElement('button');
+    avgBtn.textContent = '%Per day';
+    avgBtn.onclick = () => {
+      showAverageAsPercent = !showAverageAsPercent;
+      updateDetailedStats();
+    };
+    thAvg.appendChild(avgBtn);
+    headerRow.appendChild(thAvg);
+
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    
     const totalPerDiagonal = {};
     diagonals.forEach(d => totalPerDiagonal[d] = 0);
 
@@ -237,7 +229,6 @@
       });
     });
 
-    
     const tbody = document.createElement('tbody');
 
     people.forEach(person => {
@@ -260,7 +251,7 @@
             const percent = totalPerDiagonal[d] ? ((sumOKNDF / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
             td.textContent = percent + '%';
           } else {
-            td.textContent =     ` ${sumOKNDF} / ${daysCount} day`;
+            td.textContent = sumOKNDF;
           }
         } else {
           td.textContent = '-';
@@ -273,12 +264,29 @@
       tdTotal.classList.add('total-col');
       tr.appendChild(tdTotal);
 
+      const totalDays = Object.values(stats[person])
+        .reduce((sum, d) => sum + d.days.size, 0);
+      const totalTVs = Object.values(stats[person])
+        .reduce((sum, d) => sum + d.OK + d.NDF, 0);
+
+      const tdDays = document.createElement('td');
+      tdDays.textContent = totalDays > 0 ? totalDays : '-';
+      tr.appendChild(tdDays);
+
+      const tdAvg = document.createElement('td');
+      if (totalDays > 0) {
+        const avg = totalTVs / totalDays;
+        tdAvg.textContent = showAverageAsPercent ? (avg.toFixed(1) + '%') : avg.toFixed(1);
+      } else {
+        tdAvg.textContent = '-';
+      }
+      tr.appendChild(tdAvg);
+
       tbody.appendChild(tr);
     });
 
     table.appendChild(tbody);
 
-    
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
 
@@ -290,17 +298,16 @@
     diagonals.forEach(d => {
       const td = document.createElement('td');
       td.classList.add('total-col');
-      if (showPercent) {
-        td.textContent = '100%';
-      } else {
-        td.textContent = totalPerDiagonal[d];
-      }
+      td.textContent = showPercent ? '100%' : totalPerDiagonal[d];
       footerRow.appendChild(td);
     });
 
     const emptyFooterCell = document.createElement('td');
     emptyFooterCell.classList.add('total-col');
     footerRow.appendChild(emptyFooterCell);
+
+    footerRow.appendChild(document.createElement('td'));
+    footerRow.appendChild(document.createElement('td'));
 
     tfoot.appendChild(footerRow);
     table.appendChild(tfoot);
@@ -322,8 +329,6 @@
       select.appendChild(option);
     }
   }
-
-  let showPercent = false;
 
   async function updateDetailedStats() {
     const selectedMonth = document.getElementById('month-select').value;
@@ -354,6 +359,5 @@
     updateDetailedStats();
   });
 </script>
-
 </body>
 </html>
