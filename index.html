@@ -181,31 +181,38 @@
     }
 
     const table = document.createElement('table');
-
-    // Заголовок
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th')); // пустая верхняя левая
+    headerRow.appendChild(document.createElement('th'));
 
     diagonals.forEach(d => {
       const th = document.createElement('th');
       th.textContent = d;
       headerRow.appendChild(th);
     });
-    // Добавляем заголовок "Итого" справа
+
     const thTotalCol = document.createElement('th');
     thTotalCol.textContent = 'Итого';
     thTotalCol.classList.add('total-col');
     headerRow.appendChild(thTotalCol);
 
+    const thDays = document.createElement('th');
+    thDays.textContent = 'Day';
+    thDays.classList.add('total-col');
+    headerRow.appendChild(thDays);
+
+    const thPercent = document.createElement('th');
+    thPercent.textContent = '% per month';
+    thPercent.classList.add('total-col');
+    headerRow.appendChild(thPercent);
+
     thead.appendChild(headerRow);
     table.appendChild(thead);
 
-    // Подсчёт общей суммы по диагоналям (для нижней строки)
     const totalPerDiagonal = {};
     diagonals.forEach(d => totalPerDiagonal[d] = 0);
+    let grandTotal = 0;
 
-    // Создаем тело таблицы
     const tbody = document.createElement('tbody');
 
     people.forEach(person => {
@@ -223,6 +230,7 @@
           const daysCount = s.days.size;
           const sumOKNDF = s.OK + s.NDF;
           totalPersonSum += sumOKNDF;
+          grandTotal += sumOKNDF;
           totalPerDiagonal[d] += sumOKNDF;
 
           if (showPercent) {
@@ -237,18 +245,32 @@
         tr.appendChild(td);
       });
 
-      // Итого по человеку справа
       const tdTotal = document.createElement('td');
       tdTotal.textContent = showPercent ? '' : totalPersonSum;
       tdTotal.classList.add('total-col');
       tr.appendChild(tdTotal);
+
+      // Уникальные дни по всем диагоналям
+      const uniqueDays = new Set();
+      Object.values(stats[person]).forEach(d => {
+        d.days.forEach(day => uniqueDays.add(day));
+      });
+
+      const tdDays = document.createElement('td');
+      tdDays.textContent = uniqueDays.size;
+      tdDays.classList.add('total-col');
+      tr.appendChild(tdDays);
+
+      const tdPercent = document.createElement('td');
+      tdPercent.textContent = grandTotal > 0 ? ((totalPersonSum / grandTotal) * 100).toFixed(1) + '%' : '0.0%';
+      tdPercent.classList.add('total-col');
+      tr.appendChild(tdPercent);
 
       tbody.appendChild(tr);
     });
 
     table.appendChild(tbody);
 
-    // Добавляем нижний ряд с суммами по диагоналям
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
 
@@ -260,19 +282,21 @@
     diagonals.forEach(d => {
       const td = document.createElement('td');
       td.classList.add('total-col');
-      if (showPercent) {
-        // При показе %, внизу можно оставить пустое или 100%
-        td.textContent = '100%';
-      } else {
-        td.textContent = totalPerDiagonal[d];
-      }
+      td.textContent = showPercent ? '100%' : totalPerDiagonal[d];
       footerRow.appendChild(td);
     });
 
-    // Пустая ячейка справа внизу, под "Итого" по людям
     const emptyFooterCell = document.createElement('td');
     emptyFooterCell.classList.add('total-col');
     footerRow.appendChild(emptyFooterCell);
+
+    const emptyFooterCell2 = document.createElement('td');
+    emptyFooterCell2.classList.add('total-col');
+    footerRow.appendChild(emptyFooterCell2);
+
+    const emptyFooterCell3 = document.createElement('td');
+    emptyFooterCell3.classList.add('total-col');
+    footerRow.appendChild(emptyFooterCell3);
 
     tfoot.appendChild(footerRow);
     table.appendChild(tfoot);
@@ -325,7 +349,6 @@
     });
 
     updateDetailedStats();
-
     setInterval(updateDetailedStats, 10000);
   });
 </script>
