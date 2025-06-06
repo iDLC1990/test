@@ -247,7 +247,7 @@
             const sum = s.OK + s.NDF;
             personSum += sum;
             s.days.forEach(day => uniqueDays.add(day));
-            td.textContent = sum;
+            td.textContent = ` ${sumOKNDF} / ${daysCount} day`;
           } else {
             td.textContent = '-';
           }
