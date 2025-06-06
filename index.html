@@ -1,4 +1,155 @@
-    function calculateDetailedStats(data) {
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCDR LIVE DATA 2025 - Диагонали</title>
+  <style>
+    body {
+      background-color: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 10%;
+      background-color: #111;
+      flex-wrap: wrap;
+    }
+    .header h1 {
+      margin: 0;
+      color: #008080;
+      font-size: 24px;
+    }
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .date-info {
+      color: #008080;
+      font-size: 20px;
+    }
+    select {
+      padding: 6px 10px;
+      font-size: 16px;
+      border-radius: 5px;
+      border: none;
+    }
+    #stats-container {
+      width: 90%;
+      margin: 24px auto;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #222;
+      color: #fff;
+    }
+    th, td {
+      border: 1px solid #555;
+      padding: 8px 10px;
+      text-align: center;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+    th {
+      background-color: #008080;
+      font-weight: bold;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      cursor: pointer;
+    }
+    td:first-child {
+      background-color: #111;
+      font-weight: bold;
+      text-align: left;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+    }
+    th.total-col, td.total-col {
+      background-color: #005050;
+      font-weight: bold;
+    }
+    tfoot td {
+      background-color: #005050;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>LCDR LIVE DATA 2025 - Диагонали</h1>
+    <div class="controls">
+      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
+      <select id="month-select"></select>
+    </div>
+  </div>
+
+  <div id="stats-container"></div>
+
+  <script>
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+
+    const validStatuses = ['OK', 'NDF'];
+
+    const diagonalMap = {
+      '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
+      '550': 55, '545': 55, '500': 50, '498': 50, '495': 50, '490': 50,
+      '438': 43, '435': 43, '430': 43, '428': 43, '425': 43, '420': 43,
+      '418': 43, '415': 43, '398': 43, '395': 43, '390': 43,
+      '348': 32, '345': 32, '340': 32, '328': 32, '325': 32, '320': 32,
+      '318': 32, '315': 32,
+      '278': 27, '275': 27, '270': 27,
+      '248': 24, '245': 24, '240': 24, '238': 24, '235': 24, '230': 24
+    };
+
+    function getDiagonal(serial) {
+      if (!serial || serial.length < 6) return null;
+      const match = serial.toUpperCase().match(/^[A-Z]{3}(\d{3})/);
+      if (!match) return null;
+      return diagonalMap[match[1]] || null;
+    }
+
+    async function getData(sheetName) {
+      try {
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+        const data = await response.json();
+        return data.values || [];
+      } catch (err) {
+        console.error('Ошибка получения данных:', err);
+        return [];
+      }
+    }
+
+    async function fetchData() {
+      const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
+      let combined = [];
+
+      for (const name of sheetNames) {
+        const sheetData = await getData(name);
+        if (sheetData.length < 2) continue;
+        const rows = sheetData.slice(1);
+        const mapped = rows.map(row => ({
+          date: row[0] || '',
+          serial: row[2] || '',
+          status: (row[4] || '').toUpperCase(),
+          person: row[5] || ''
+        }));
+        combined = combined.concat(mapped);
+      }
+      return combined;
+    }
+
+function calculateDetailedStats(data) {
       const stats = {};
       data.forEach(({ date, serial, status, person }) => {
         if (!validStatuses.includes(status)) return; // учитываем только OK и NDF
