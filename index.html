@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>test</title>
+  <title>LCDR LIVE DATA</title>
   <style>
     body {
       background-color: #000;
@@ -95,6 +95,7 @@
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
       <button id="toggle-percent">Показать %</button>
+      <button id="toggle-avg">Переключить %/число</button>
     </div>
   </div>
 
@@ -112,7 +113,6 @@
     '315': 32, '278': 27, '275': 27, '270': 27, '238': 24,
     '235': 24, '230': 24, '240': 24
   };
-
   const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
   function getDiagonal(serial) {
@@ -153,26 +153,32 @@
 
   function calculateDetailedStats(data) {
     const stats = {};
+
     data.forEach(({ date, serial, status, person }) => {
       const diagonal = getDiagonal(serial);
       if (!diagonal) return;
+      if (!person) return;
 
-      if (!stats[person]) stats[person] = {};
+      if (!stats[person]) stats[person] = { _days: new Set() };
       if (!stats[person][diagonal]) stats[person][diagonal] = { OK: 0, NDF: 0, days: new Set() };
 
       if (status === 'OK') stats[person][diagonal].OK++;
       if (status === 'NDF') stats[person][diagonal].NDF++;
 
       const day = date.split(' ')[0];
-      if (day) stats[person][diagonal].days.add(day);
+      if (day) {
+        stats[person][diagonal].days.add(day);
+        stats[person]._days.add(day); // Уникальные дни
+      }
     });
+
     return stats;
   }
 
   let showPercent = false;
   let showAverageAsPercent = false;
 
-  function renderTable(stats, showPercent = false) {
+  function renderTable(stats) {
     const container = document.getElementById('stats-container');
     container.innerHTML = '';
 
@@ -184,9 +190,10 @@
 
     const table = document.createElement('table');
 
+    // Заголовок
     const thead = document.createElement('thead');
     const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th'));
+    headerRow.appendChild(document.createElement('th')); // пустая ячейка
 
     diagonals.forEach(d => {
       const th = document.createElement('th');
@@ -194,23 +201,17 @@
       headerRow.appendChild(th);
     });
 
-    const thTotalCol = document.createElement('th');
-    thTotalCol.textContent = 'Итого';
-    thTotalCol.classList.add('total-col');
-    headerRow.appendChild(thTotalCol);
+    const thTotal = document.createElement('th');
+    thTotal.textContent = 'Итого';
+    thTotal.classList.add('total-col');
+    headerRow.appendChild(thTotal);
 
     const thDays = document.createElement('th');
     thDays.textContent = '1 day';
     headerRow.appendChild(thDays);
 
     const thAvg = document.createElement('th');
-    const avgBtn = document.createElement('button');
-    avgBtn.textContent = '%Per day';
-    avgBtn.onclick = () => {
-      showAverageAsPercent = !showAverageAsPercent;
-      updateDetailedStats();
-    };
-    thAvg.appendChild(avgBtn);
+    thAvg.innerHTML = `<button id="toggle-avg-inner">%Per day</button>`;
     headerRow.appendChild(thAvg);
 
     thead.appendChild(headerRow);
@@ -223,8 +224,7 @@
       diagonals.forEach(d => {
         if (stats[person][d]) {
           const s = stats[person][d];
-          const sumOKNDF = s.OK + s.NDF;
-          totalPerDiagonal[d] += sumOKNDF;
+          totalPerDiagonal[d] += s.OK + s.NDF;
         }
       });
     });
@@ -244,14 +244,14 @@
         if (stats[person][d]) {
           const s = stats[person][d];
           const daysCount = s.days.size;
-          const sumOKNDF = s.OK + s.NDF;
-          totalPersonSum += sumOKNDF;
+          const sum = s.OK + s.NDF;
+          totalPersonSum += sum;
 
           if (showPercent) {
-            const percent = totalPerDiagonal[d] ? ((sumOKNDF / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
+            const percent = totalPerDiagonal[d] ? ((sum / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
             td.textContent = percent + '%';
           } else {
-            td.textContent = sumOKNDF;
+            td.textContent = `${s.OK}/${s.NDF} / ${daysCount}`;
           }
         } else {
           td.textContent = '-';
@@ -264,18 +264,16 @@
       tdTotal.classList.add('total-col');
       tr.appendChild(tdTotal);
 
-      const totalDays = Object.values(stats[person])
-        .reduce((sum, d) => sum + d.days.size, 0);
-      const totalTVs = Object.values(stats[person])
-        .reduce((sum, d) => sum + d.OK + d.NDF, 0);
-
+      // Days column
+      const totalDays = stats[person]._days.size;
       const tdDays = document.createElement('td');
       tdDays.textContent = totalDays > 0 ? totalDays : '-';
       tr.appendChild(tdDays);
 
+      // Avg per day column
       const tdAvg = document.createElement('td');
       if (totalDays > 0) {
-        const avg = totalTVs / totalDays;
+        const avg = totalPersonSum / totalDays;
         tdAvg.textContent = showAverageAsPercent ? (avg.toFixed(1) + '%') : avg.toFixed(1);
       } else {
         tdAvg.textContent = '-';
@@ -287,9 +285,9 @@
 
     table.appendChild(tbody);
 
+    // Итоговая строка
     const tfoot = document.createElement('tfoot');
     const footerRow = document.createElement('tr');
-
     const footerNameCell = document.createElement('td');
     footerNameCell.textContent = 'Итого';
     footerNameCell.style.textAlign = 'left';
@@ -302,17 +300,20 @@
       footerRow.appendChild(td);
     });
 
-    const emptyFooterCell = document.createElement('td');
-    emptyFooterCell.classList.add('total-col');
-    footerRow.appendChild(emptyFooterCell);
-
-    footerRow.appendChild(document.createElement('td'));
-    footerRow.appendChild(document.createElement('td'));
+    footerRow.appendChild(document.createElement('td')); // Итого
+    footerRow.appendChild(document.createElement('td')); // 1 day
+    footerRow.appendChild(document.createElement('td')); // %Per day
 
     tfoot.appendChild(footerRow);
     table.appendChild(tfoot);
 
     container.appendChild(table);
+
+    // Кнопка в заголовке
+    document.getElementById('toggle-avg-inner').addEventListener('click', () => {
+      showAverageAsPercent = !showAverageAsPercent;
+      renderTable(stats);
+    });
   }
 
   function populateMonthSelect() {
@@ -333,19 +334,17 @@
   async function updateDetailedStats() {
     const selectedMonth = document.getElementById('month-select').value;
     const [year, month] = selectedMonth.split('-').map(Number);
-
     const combinedData = await fetchData();
 
     const filtered = combinedData.filter(record => {
       const dateStr = record.date?.split(' ')[0];
       if (!dateStr) return false;
-
       const date = new Date(dateStr);
       return date.getFullYear() === year && (date.getMonth() + 1) === month;
     });
 
     const stats = calculateDetailedStats(filtered);
-    renderTable(stats, showPercent);
+    renderTable(stats);
   }
 
   document.addEventListener('DOMContentLoaded', () => {
@@ -356,8 +355,13 @@
       updateDetailedStats();
       document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : 'Показать %';
     });
+    document.getElementById('toggle-avg').addEventListener('click', () => {
+      showAverageAsPercent = !showAverageAsPercent;
+      updateDetailedStats();
+    });
     updateDetailedStats();
   });
 </script>
+
 </body>
 </html>
