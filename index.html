@@ -80,6 +80,10 @@
       background-color: #005050;
       font-weight: bold;
     }
+    th.toggle-button {
+      cursor: pointer;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
@@ -147,17 +151,16 @@
     }
 
     function calculateDetailedStats(data) {
+      // Структура:
+      // stats[person][day][diagonal] = количество
       const stats = {};
-      data.forEach(({ date, serial, person }) => {
+      data.forEach(({ date, serial, status, person }) => {
         const diagonal = getDiagonal(serial);
         if (!diagonal) return;
-        const day = date.split(' ')[0];
-        if (!day || !person) return;
-
         if (!stats[person]) stats[person] = {};
+        const day = date.split(' ')[0];
         if (!stats[person][day]) stats[person][day] = {};
         if (!stats[person][day][diagonal]) stats[person][day][diagonal] = 0;
-
         stats[person][day][diagonal]++;
       });
       return stats;
@@ -167,9 +170,10 @@
       const container = document.getElementById('stats-container');
       container.innerHTML = '';
 
+      // Получаем все диагонали из данных
       const diagonals = Array.from(new Set(
-        Object.values(stats).flatMap(p =>
-          Object.values(p).flatMap(day => Object.keys(day).map(Number))
+        Object.values(stats).flatMap(personDays =>
+          Object.values(personDays).flatMap(day => Object.keys(day).map(Number))
         )
       )).sort((a, b) => b - a);
 
@@ -195,22 +199,18 @@
 
       headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Day' }));
 
-      const thPercentToggle = document.createElement('th');
-      thPercentToggle.textContent = 'Ø';
-      thPercentToggle.style.cursor = 'pointer';
-      headerRow.appendChild(thPercentToggle);
-
-      const thTotalToggle = document.createElement('th');
-      thTotalToggle.textContent = 'Total';
-      thTotalToggle.className = 'total-col';
-      thTotalToggle.style.cursor = 'pointer';
-      headerRow.appendChild(thTotalToggle);
+      // Кнопка переключения режимов 0 / %
+      const thToggle = document.createElement('th');
+      thToggle.textContent = '0';
+      thToggle.classList.add('toggle-button');
+      headerRow.appendChild(thToggle);
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
 
+      // Подготовка данных для отображения
       const personData = {};
       let globalTotal = 0;
       const totalPerDiagonal = {};
@@ -239,7 +239,8 @@
 
         diagonals.forEach(d => {
           const td = document.createElement('td');
-          td.textContent = diagCounts[d] || '-';
+          const avg = days.length ? (diagCounts[d] / days.length).toFixed(1) : '0';
+          td.textContent = avg === '0' ? '-' : avg;
           tr.appendChild(td);
         });
 
@@ -247,15 +248,8 @@
         tdDays.textContent = days.length;
         tr.appendChild(tdDays);
 
-        const tdPercent = document.createElement('td');
-        tdPercent.className = 'percent-cell';
-        tdPercent.textContent = ((total / globalTotal) * 100).toFixed(1) + '%';
-        tr.appendChild(tdPercent);
-
-        const tdTotal = document.createElement('td');
-        tdTotal.className = 'total-col';
-        tdTotal.textContent = total;
-        tr.appendChild(tdTotal);
+        // Пустая ячейка для выравнивания (там, где раньше была кнопка в строке)
+        tr.appendChild(document.createElement('td'));
 
         tbody.appendChild(tr);
 
@@ -263,7 +257,6 @@
         personData[person] = {
           total,
           dayCount: days.length,
-          avgPerDay: days.length ? (total / days.length).toFixed(1) : '0',
           diagCounts,
           row: tr
         };
@@ -286,83 +279,82 @@
 
       footerRow.appendChild(document.createElement('td'));
       footerRow.appendChild(document.createElement('td'));
-
-      const tdTotalAll = document.createElement('td');
-      tdTotalAll.classList.add('total-col');
-      tdTotalAll.textContent = globalTotal;
-      footerRow.appendChild(tdTotalAll);
-
       tfoot.appendChild(footerRow);
       table.appendChild(tfoot);
 
       container.appendChild(table);
 
+      // Переменная для отслеживания режима (false = "0", true = "%")
       let percentMode = false;
-      let totalMode = false;
 
-      thPercentToggle.addEventListener('click', () => {
+      thToggle.addEventListener('click', () => {
         percentMode = !percentMode;
-        thPercentToggle.textContent = percentMode ? '%' : 'Ø';
+        thToggle.textContent = percentMode ? '%' : '0';
 
-        people.forEach(p => {
-          const { total, dayCount, diagCounts, row } = personData[p];
-          const cell = row.children[row.children.length - 2];
-          if (percentMode) {
-            const diagPercents = Object.entries(diagCounts)
-              .map(([diag, val]) => `${diag}: ${(val / total * 100).toFixed(0)}%`)
-              .join(' | ');
-            cell.textContent = diagPercents || '0%';
-          } else {
-            cell.textContent = dayCount ? (total / dayCount).toFixed(1) : '0';
-          }
-        });
-      });
-
-      thTotalToggle.addEventListener('click', () => {
-        totalMode = !totalMode;
-        thTotalToggle.textContent = totalMode ? '% Total' : 'Total';
-        people.forEach(p => {
-          const { total, row } = personData[p];
-          const cell = row.children[row.children.length - 1];
-          cell.textContent = totalMode ? ((total / globalTotal) * 100).toFixed(1) + '%' : total;
+        people.forEach(person => {
+          const { dayCount, diagCounts, total, row } = {
+            ...personData[person],
+            total: personData[person].total
+          };
+          diagonals.forEach((d, i) => {
+            const cell = row.children[i + 1];
+            if (percentMode) {
+              // Процент от суммы диагоналей
+              const percent = total > 0 ? ((diagCounts[d] / total) * 100).toFixed(0) : '0';
+              cell.textContent = percent + '%';
+            } else {
+              // Среднее за день
+              const avg = dayCount ? (diagCounts[d] / dayCount).toFixed(1) : '0';
+              cell.textContent = avg === '0' ? '-' : avg;
+            }
+          });
         });
       });
     }
 
-    function populateMonthSelect() {
-      const select = document.getElementById('month-select');
+    // Заполнение селекта месяцами текущего года
+    function fillMonthSelect() {
+      const monthSelect = document.getElementById('month-select');
       const now = new Date();
-      for (let i = 0; i < 12; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-        const option = new Option(label.charAt(0).toUpperCase() + label.slice(1), value);
-        select.appendChild(option);
+      const year = now.getFullYear();
+
+      for (let m = 1; m <= 12; m++) {
+        const option = document.createElement('option');
+        const monthStr = m.toString().padStart(2, '0');
+        option.value = `${year}-${monthStr}`;
+        option.textContent = `${monthStr} ${year}`;
+        monthSelect.appendChild(option);
       }
+
+      monthSelect.value = `${year}-${(now.getMonth()+1).toString().padStart(2, '0')}`;
     }
 
-    async function updateDetailedStats() {
-      const selectedMonth = document.getElementById('month-select').value;
-      const [year, month] = selectedMonth.split('-').map(Number);
-      const combinedData = await fetchData();
-
-      const filtered = combinedData.filter(record => {
-        const dateStr = record.date?.split(' ')[0];
-        if (!dateStr) return false;
-        const date = new Date(dateStr);
-        return date.getFullYear() === year && (date.getMonth() + 1) === month;
-      });
-
-      const stats = calculateDetailedStats(filtered);
-      renderTable(stats);
+    // Отфильтровать данные по выбранному месяцу
+    function filterDataByMonth(data, month) {
+      // month: "YYYY-MM"
+      return data.filter(item => item.date.startsWith(month));
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      populateMonthSelect();
-      document.getElementById('month-select').addEventListener('change', updateDetailedStats);
-      updateDetailedStats();
-      setInterval(updateDetailedStats, 10000);
-    });
+    async function main() {
+      fillMonthSelect();
+
+      const allData = await fetchData();
+
+      const monthSelect = document.getElementById('month-select');
+
+      function update() {
+        const selectedMonth = monthSelect.value;
+        const filtered = filterDataByMonth(allData, selectedMonth);
+        const stats = calculateDetailedStats(filtered);
+        renderTable(stats);
+      }
+
+      monthSelect.addEventListener('change', update);
+
+      update();
+    }
+
+    main();
   </script>
 </body>
 </html>
