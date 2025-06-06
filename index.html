@@ -176,6 +176,8 @@
         return;
       }
 
+      let isPercentMode = false; // флаг для переключения
+
       const table = document.createElement('table');
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
@@ -192,10 +194,13 @@
 
       headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Day' }));
       headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: '% per month' }));
-      headerRow.appendChild(Object.assign(document.createElement('th'), {
-        textContent: 'Total',
-        className: 'total-col'
-      }));
+
+      const thTotal = document.createElement('th');
+      thTotal.textContent = 'Total';
+      thTotal.className = 'total-col';
+      thTotal.style.cursor = 'pointer';
+      thTotal.title = 'Нажмите, чтобы переключить отображение Total в процентах';
+      headerRow.appendChild(thTotal);
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
@@ -282,6 +287,21 @@
       table.appendChild(tfoot);
 
       container.appendChild(table);
+
+      // Обработка клика по заголовку "Total"
+      thTotal.addEventListener('click', () => {
+        isPercentMode = !isPercentMode;
+        tbody.querySelectorAll('tr').forEach(tr => {
+          const personName = tr.firstChild.textContent;
+          const total = personTotals[personName];
+          const td = tr.lastChild;
+          if (isPercentMode) {
+            td.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
+          } else {
+            td.textContent = total;
+          }
+        });
+      });
     }
 
     function populateMonthSelect() {
@@ -292,34 +312,38 @@
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-        const option = new Option(label.charAt(0).toUpperCase() + label.slice(1), value);
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
         select.appendChild(option);
       }
+      select.selectedIndex = 0;
     }
 
-    async function updateDetailedStats() {
-      const selectedMonth = document.getElementById('month-select').value;
-      const [year, month] = selectedMonth.split('-').map(Number);
-
-      const combinedData = await fetchData();
-
-      const filtered = combinedData.filter(record => {
-        const dateStr = record.date?.split(' ')[0];
-        if (!dateStr) return false;
-        const date = new Date(dateStr);
-        return date.getFullYear() === year && (date.getMonth() + 1) === month;
+    function filterDataByMonth(data, monthStr) {
+      return data.filter(item => {
+        if (!item.date) return false;
+        const [year, month] = monthStr.split('-').map(Number);
+        const itemDate = new Date(item.date);
+        return itemDate.getFullYear() === year && (itemDate.getMonth() + 1) === month;
       });
-
-      const stats = calculateDetailedStats(filtered);
-      renderTable(stats);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
+    async function init() {
       populateMonthSelect();
-      document.getElementById('month-select').addEventListener('change', updateDetailedStats);
-      updateDetailedStats();
-      setInterval(updateDetailedStats, 10000);
-    });
+      let allData = await fetchData();
+
+      const select = document.getElementById('month-select');
+      function updateTable() {
+        const filtered = filterDataByMonth(allData, select.value);
+        const stats = calculateDetailedStats(filtered);
+        renderTable(stats);
+      }
+      select.addEventListener('change', updateTable);
+      updateTable();
+    }
+
+    init();
   </script>
 </body>
 </html>
