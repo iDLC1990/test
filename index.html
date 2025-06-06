@@ -207,48 +207,51 @@
 
       const tbody = document.createElement('tbody');
 
-      let globalTotal = 0;
-      const totalPerDiagonal = {};
-      diagonals.forEach(d => totalPerDiagonal[d] = 0);
-
+      // Сначала считаем total для каждого человека и общий total
       const personTotals = {};
+      let globalTotal = 0;
 
+      people.forEach(person => {
+        let total = 0;
+        diagonals.forEach(d => {
+          if (stats[person][d]) {
+            total += stats[person][d].sum;
+          }
+        });
+        personTotals[person] = total;
+        globalTotal += total;
+      });
+
+      // Теперь рендерим строки с правильными процентами
       people.forEach(person => {
         const tr = document.createElement('tr');
         const tdName = document.createElement('td');
         tdName.textContent = person;
         tr.appendChild(tdName);
 
-        let total = 0;
         let days = new Set();
 
         diagonals.forEach(d => {
           const td = document.createElement('td');
           if (stats[person][d]) {
-            const sum = stats[person][d].sum;
-            total += sum;
-            totalPerDiagonal[d] += sum;
+            td.textContent = stats[person][d].sum;
             stats[person][d].days.forEach(day => days.add(day));
-            td.textContent = sum;
           } else {
             td.textContent = '-';
           }
           tr.appendChild(td);
         });
 
-        globalTotal += total;
-        personTotals[person] = total;
-
         const tdDays = document.createElement('td');
         tdDays.textContent = days.size;
         tr.appendChild(tdDays);
 
         const tdPercent = document.createElement('td');
-        tdPercent.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
+        tdPercent.textContent = globalTotal ? ((personTotals[person] / globalTotal) * 100).toFixed(1) + '%' : '0%';
         tr.appendChild(tdPercent);
 
         const tdTotal = document.createElement('td');
-        tdTotal.textContent = total;
+        tdTotal.textContent = personTotals[person];
         tdTotal.classList.add('total-col');
         tr.appendChild(tdTotal);
 
@@ -257,12 +260,24 @@
 
       table.appendChild(tbody);
 
+      // Футер с итогами по диагоналям и общим total
       const tfoot = document.createElement('tfoot');
       const footerRow = document.createElement('tr');
 
       const tdLabel = document.createElement('td');
       tdLabel.textContent = 'Total Repaired';
       footerRow.appendChild(tdLabel);
+
+      const totalPerDiagonal = {};
+      diagonals.forEach(d => totalPerDiagonal[d] = 0);
+
+      people.forEach(person => {
+        diagonals.forEach(d => {
+          if (stats[person][d]) {
+            totalPerDiagonal[d] += stats[person][d].sum;
+          }
+        });
+      });
 
       diagonals.forEach(d => {
         const td = document.createElement('td');
@@ -288,7 +303,7 @@
 
       container.appendChild(table);
 
-      // Обработка клика по заголовку "Total"
+      // Обработка клика по заголовку "Total" для переключения отображения
       thTotal.addEventListener('click', () => {
         isPercentMode = !isPercentMode;
         tbody.querySelectorAll('tr').forEach(tr => {
@@ -304,46 +319,61 @@
       });
     }
 
-    function populateMonthSelect() {
+    // Функция для загрузки месяцев в селект
+    function fillMonthsDropdown(months) {
       const select = document.getElementById('month-select');
-      const now = new Date();
-
-      for (let i = 0; i < 12; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+      select.innerHTML = '';
+      months.forEach(month => {
         const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+        option.value = month;
+        option.textContent = month;
         select.appendChild(option);
-      }
-      select.selectedIndex = 0;
-    }
-
-    function filterDataByMonth(data, monthStr) {
-      return data.filter(item => {
-        if (!item.date) return false;
-        const [year, month] = monthStr.split('-').map(Number);
-        const itemDate = new Date(item.date);
-        return itemDate.getFullYear() === year && (itemDate.getMonth() + 1) === month;
       });
     }
 
-    async function init() {
-      populateMonthSelect();
-      let allData = await fetchData();
-
-      const select = document.getElementById('month-select');
-      function updateTable() {
-        const filtered = filterDataByMonth(allData, select.value);
-        const stats = calculateDetailedStats(filtered);
-        renderTable(stats);
-      }
-      select.addEventListener('change', updateTable);
-      updateTable();
+    // Парсим и получаем список месяцев из данных
+    function extractMonths(data) {
+      const months = new Set();
+      data.forEach(({ date }) => {
+        if (date) {
+          const m = date.split(' ')[0].slice(0, 7); // yyyy-mm
+          months.add(m);
+        }
+      });
+      return Array.from(months).sort().reverse();
     }
 
-    init();
+    async function main() {
+      const rawData = await fetchData();
+
+      // Получаем список месяцев
+      const months = extractMonths(rawData);
+      fillMonthsDropdown(months);
+
+      const select = document.getElementById('month-select');
+      function filterByMonth(month) {
+        const filtered = rawData.filter(item => item.date && item.date.startsWith(month));
+        return filtered;
+      }
+
+      function refreshTable() {
+        const month = select.value;
+        const filteredData = filterByMonth(month);
+        const stats = calculateDetailedStats(filteredData);
+        renderTable(stats);
+      }
+
+      select.addEventListener('change', refreshTable);
+
+      if (months.length > 0) {
+        select.value = months[0];
+        refreshTable();
+      } else {
+        document.getElementById('stats-container').innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных</p>';
+      }
+    }
+
+    main();
   </script>
 </body>
 </html>
