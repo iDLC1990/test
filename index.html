@@ -149,7 +149,7 @@
       return combined;
     }
 
-function calculateDetailedStats(data) {
+    function calculateDetailedStats(data) {
       const stats = {};
       data.forEach(({ date, serial, status, person }) => {
         if (!validStatuses.includes(status)) return; // учитываем только OK и NDF
@@ -314,19 +314,20 @@ function calculateDetailedStats(data) {
       footerRow.appendChild(document.createElement('td'));
       footerRow.appendChild(document.createElement('td'));
 
-      const tdTotalAll = document.createElement('td');
-      tdTotalAll.textContent = globalTotal;
-      tdTotalAll.classList.add('total-col');
-      footerRow.appendChild(tdTotalAll);
+      // Общий total
+      const tdGlobalTotal = document.createElement('td');
+      tdGlobalTotal.textContent = globalTotal;
+      tdGlobalTotal.classList.add('total-col');
+      footerRow.appendChild(tdGlobalTotal);
 
       tfoot.appendChild(footerRow);
       table.appendChild(tfoot);
 
       container.appendChild(table);
 
-      // Обработчики кнопок
+      // --- Обработчики кликов по заголовкам ---
 
-      // Кнопка % per month (переключает режим отображения)
+      // % per month — переключаем режим отображения ячеек диагоналей на процент от total по человеку
       thPercentPerMonth.addEventListener('click', () => {
         percentPerMonthMode = !percentPerMonthMode;
         tbody.querySelectorAll('tr').forEach(tr => {
@@ -335,84 +336,93 @@ function calculateDetailedStats(data) {
           if (!statsPerson) return;
           const totalForPerson = personTotals[personName];
 
-          // Колонка Days
-          const daysCell = tr.children[diagonals.length + 1];
-          const daysCount = Number(daysCell.textContent);
-
-          const percentCell = tr.children[diagonals.length + 2]; // td % per month
-
-          if (!percentPerMonthMode) {
-            // режим 1 — среднее арифметическое (число)
-            if (daysCount > 0) {
-              percentCell.textContent = (totalForPerson / daysCount).toFixed(1);
+          // Проходим по ячейкам диагоналей (начинаются со второго td, т.к. первый — имя)
+          for (let i = 1; i <= diagonals.length; i++) {
+            const td = tr.children[i];
+            const diagonal = diagonals[i - 1];
+            if (!percentPerMonthMode) {
+              // Показываем число
+              td.textContent = statsPerson[diagonal] ? statsPerson[diagonal].sum : '-';
             } else {
-              percentCell.textContent = '0';
+              // Показываем процент от totalForPerson
+              if (statsPerson[diagonal] && totalForPerson > 0) {
+                const percent = ((statsPerson[diagonal].sum / totalForPerson) * 100).toFixed(1);
+                td.textContent = percent + '%';
+              } else {
+                td.textContent = '-';
+              }
             }
-          } else {
-            // режим 2 — % для каждой диагонали от total, надо показать сумму процентов (100%)
-            // но т.к. в одной ячейке — отобразим 100%
-            percentCell.textContent = '100%';
           }
         });
       });
 
-      // Кнопка Total (переключает число / % от глобального total)
+      // Total — переключаем отображение total: число / процент от глобального total
       thTotal.addEventListener('click', () => {
         totalModePercent = !totalModePercent;
         tbody.querySelectorAll('tr').forEach(tr => {
           const personName = tr.firstChild.textContent;
           const totalForPerson = personTotals[personName];
-          const totalCell = tr.lastChild;
 
-          if (totalModePercent) {
-            totalCell.textContent = globalTotal ? ((totalForPerson / globalTotal) * 100).toFixed(1) + '%' : '0%';
+          const tdTotal = tr.lastChild;
+          if (!totalModePercent) {
+            tdTotal.textContent = totalForPerson;
           } else {
-            totalCell.textContent = totalForPerson;
+            if (globalTotal > 0) {
+              const percent = ((totalForPerson / globalTotal) * 100).toFixed(1);
+              tdTotal.textContent = percent + '%';
+            } else {
+              tdTotal.textContent = '-';
+            }
           }
         });
+
+        // Обновляем футер
+        const footerTotalCell = table.querySelector('tfoot tr').lastChild;
+        if (!totalModePercent) {
+          footerTotalCell.textContent = globalTotal;
+        } else {
+          footerTotalCell.textContent = '100%';
+        }
       });
     }
 
-    function populateMonthSelect() {
+    async function update(month) {
+      const allData = await fetchData();
+
+      // Фильтруем данные по месяцу: формат YYYY-MM (например 2025-06)
+      const filtered = allData.filter(d => d.date.startsWith(month));
+
+      const stats = calculateDetailedStats(filtered);
+      renderTable(stats);
+    }
+
+    // Заполняем select месяцами от текущего и назад 12 месяцев
+    function fillMonthSelect() {
       const select = document.getElementById('month-select');
       const now = new Date();
-
       for (let i = 0; i < 12; i++) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
-        select.appendChild(option);
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const y = d.getFullYear();
+        const m = (d.getMonth() + 1).toString().padStart(2, '0');
+        const val = `${y}-${m}`;
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        select.appendChild(opt);
       }
-      select.selectedIndex = 0;
+      select.value = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+      return select.value;
     }
 
-    function filterDataByMonth(data, monthStr) {
-      return data.filter(item => {
-        if (!item.date) return false;
-        const [year, month] = monthStr.split('-').map(Number);
-        const itemDate = new Date(item.date);
-        return itemDate.getFullYear() === year && (itemDate.getMonth() + 1) === month;
-      });
-    }
-
-    async function init() {
-      populateMonthSelect();
-      let allData = await fetchData();
+    (async () => {
+      const defaultMonth = fillMonthSelect();
+      await update(defaultMonth);
 
       const select = document.getElementById('month-select');
-      function updateTable() {
-        const filtered = filterDataByMonth(allData, select.value);
-        const stats = calculateDetailedStats(filtered);
-        renderTable(stats);
-      }
-      select.addEventListener('change', updateTable);
-      updateTable();
-    }
-
-    init();
+      select.addEventListener('change', async () => {
+        await update(select.value);
+      });
+    })();
   </script>
 </body>
 </html>
