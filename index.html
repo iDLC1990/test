@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA</title>
+  <title>test</title>
   <style>
     body {
       background-color: #000;
@@ -82,6 +82,11 @@
       background-color: #005050;
       font-weight: bold;
     }
+    td.day-col, th.day-col,
+    td.perday-col, th.perday-col {
+      background-color: #505050;
+      font-weight: bold;
+    }
     tfoot td {
       background-color: #005050;
       font-weight: bold;
@@ -94,274 +99,260 @@
     <div class="controls">
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
-      <button id="toggle-percent"> %Per month</button>
-      <button id="toggle-avg">%</button>
+      <button id="toggle-percent">Показать %</button>
     </div>
   </div>
 
   <div id="stats-container"></div>
 
-<script>
-  const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-  const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-  const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+  <script>
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
 
-  const diagonalMapClean = {
-    '860': 86, '850': 85, '750': 75, '700': 70, '650': 65,
-    '580': 58, '575': 58, '550': 55, '500': 50, '490': 50,
-    '430': 43, '420': 43, '390': 43, '320': 32, '318': 32,
-    '315': 32, '278': 27, '275': 27, '270': 27, '238': 24,
-    '235': 24, '230': 24, '240': 24
-  };
-  const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
+    const diagonalMapClean = {
+      '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
+      '550': 55, '500': 50, '490': 50, '430': 43, '420': 43, '390': 43,
+      '320': 32, '318': 32, '315': 32, '278': 27, '275': 27, '270': 27,
+      '238': 24, '235': 24, '230': 24, '240': 24
+    };
 
-  function getDiagonal(serial) {
-    if (!serial || serial.length < 6) return null;
-    const key = serial.substring(3, 6);
-    return diagonalMapClean[key] || null;
-  }
+    const diagonals = [86, 85, 75, 70, 65, 58, 55, 50, 43, 32, 27, 24];
 
-  async function getData(sheetName) {
-    try {
-      const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
-      const data = await response.json();
-      return data.values || [];
-    } catch (err) {
-      console.error('Ошибка получения данных:', err);
-      return [];
+    function getDiagonal(serial) {
+      if (!serial || serial.length < 6) return null;
+      const key = serial.substring(3, 6);
+      return diagonalMapClean[key] || null;
     }
-  }
 
-  async function fetchData() {
-    const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
-    let combined = [];
-
-    for (const name of sheetNames) {
-      const sheetData = await getData(name);
-      if (sheetData.length < 2) continue;
-      const rows = sheetData.slice(1);
-      const mapped = rows.map(row => ({
-        date: row[0] || '',
-        serial: row[2] || '',
-        status: row[4] || '',
-        person: row[5] || ''
-      }));
-      combined = combined.concat(mapped);
-    }
-    return combined;
-  }
-
-  function calculateDetailedStats(data) {
-    const stats = {};
-
-    data.forEach(({ date, serial, status, person }) => {
-      const diagonal = getDiagonal(serial);
-      if (!diagonal) return;
-      if (!person) return;
-
-      if (!stats[person]) stats[person] = { _days: new Set() };
-      if (!stats[person][diagonal]) stats[person][diagonal] = { OK: 0, NDF: 0, days: new Set() };
-
-      if (status === 'OK') stats[person][diagonal].OK++;
-      if (status === 'NDF') stats[person][diagonal].NDF++;
-
-      const day = date.split(' ')[0];
-      if (day) {
-        stats[person][diagonal].days.add(day);
-        stats[person]._days.add(day); // Уникальные дни
+    async function getData(sheetName) {
+      try {
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+        const data = await response.json();
+        return data.values || [];
+      } catch (err) {
+        console.error('Ошибка получения данных:', err);
+        return [];
       }
-    });
-
-    return stats;
-  }
-
-  let showPercent = false;
-  let showAverageAsPercent = false;
-
-  function renderTable(stats) {
-    const container = document.getElementById('stats-container');
-    container.innerHTML = '';
-
-    const people = Object.keys(stats).sort();
-    if (people.length === 0) {
-      container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
-      return;
     }
 
-    const table = document.createElement('table');
+    async function fetchData() {
+      const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
+      let combined = [];
 
-    // Заголовок
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    headerRow.appendChild(document.createElement('th')); // пустая ячейка
+      for (const name of sheetNames) {
+        const sheetData = await getData(name);
+        if (sheetData.length < 2) continue;
+        const rows = sheetData.slice(1);
+        const mapped = rows.map(row => ({
+          date: row[0] || '',
+          serial: row[2] || '',
+          status: row[4] || '',
+          person: row[5] || ''
+        }));
+        combined = combined.concat(mapped);
+      }
+      return combined;
+    }
 
-    diagonals.forEach(d => {
-      const th = document.createElement('th');
-      th.textContent = d;
-      headerRow.appendChild(th);
-    });
-
-    const thTotal = document.createElement('th');
-    thTotal.textContent = 'Total';
-    thTotal.classList.add('total-col');
-    headerRow.appendChild(thTotal);
-
-    const thDays = document.createElement('th');
-    thDays.textContent = ' Day';
-    headerRow.appendChild(thDays);
-
-    const thAvg = document.createElement('th');
-    thAvg.innerHTML = `<button id="toggle-avg-inner">%Per day</button>`;
-    headerRow.appendChild(thAvg);
-
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    const totalPerDiagonal = {};
-    diagonals.forEach(d => totalPerDiagonal[d] = 0);
-
-    people.forEach(person => {
-      diagonals.forEach(d => {
-        if (stats[person][d]) {
-          const s = stats[person][d];
-          totalPerDiagonal[d] += s.OK + s.NDF;
-        }
+    function calculateDetailedStats(data) {
+      const stats = {};
+      data.forEach(({ date, serial, status, person }) => {
+        const diagonal = getDiagonal(serial);
+        if (!diagonal) return;
+        if (!stats[person]) stats[person] = {};
+        if (!stats[person][diagonal]) stats[person][diagonal] = { OK: 0, NDF: 0, days: new Set() };
+        if (status === 'OK') stats[person][diagonal].OK++;
+        if (status === 'NDF') stats[person][diagonal].NDF++;
+        const day = date.split(' ')[0];
+        if (day) stats[person][diagonal].days.add(day);
       });
-    });
+      return stats;
+    }
 
-    const tbody = document.createElement('tbody');
+    function renderTable(stats, showPercent = false) {
+      const container = document.getElementById('stats-container');
+      container.innerHTML = '';
+      const people = Object.keys(stats).sort();
+      if (people.length === 0) {
+        container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
+        return;
+      }
 
-    people.forEach(person => {
-      const tr = document.createElement('tr');
-      const tdName = document.createElement('td');
-      tdName.textContent = person;
-      tr.appendChild(tdName);
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      headerRow.appendChild(document.createElement('th'));
+      diagonals.forEach(d => {
+        const th = document.createElement('th');
+        th.textContent = d;
+        headerRow.appendChild(th);
+      });
+      const thTotal = document.createElement('th');
+      thTotal.textContent = 'Итого';
+      thTotal.classList.add('total-col');
+      headerRow.appendChild(thTotal);
 
-      let totalPersonSum = 0;
+      const thDay = document.createElement('th');
+      thDay.textContent = 'Day';
+      thDay.classList.add('day-col');
+      headerRow.appendChild(thDay);
+
+      const thPerDay = document.createElement('th');
+      thPerDay.textContent = '%Per Day';
+      thPerDay.classList.add('perday-col');
+      headerRow.appendChild(thPerDay);
+
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const totalPerDiagonal = {};
+      diagonals.forEach(d => totalPerDiagonal[d] = 0);
+
+      people.forEach(person => {
+        diagonals.forEach(d => {
+          if (stats[person][d]) {
+            const s = stats[person][d];
+            totalPerDiagonal[d] += s.OK + s.NDF;
+          }
+        });
+      });
+
+      const tbody = document.createElement('tbody');
+      let grandTotal = 0;
+      const personTotals = {};
+      const personDays = {};
+
+      people.forEach(person => {
+        const tr = document.createElement('tr');
+        const tdName = document.createElement('td');
+        tdName.textContent = person;
+        tr.appendChild(tdName);
+
+        let personSum = 0;
+        let daySet = new Set();
+
+        diagonals.forEach(d => {
+          const td = document.createElement('td');
+          if (stats[person][d]) {
+            const s = stats[person][d];
+            const sum = s.OK + s.NDF;
+            personSum += sum;
+            s.days.forEach(day => daySet.add(day));
+            td.textContent = showPercent && totalPerDiagonal[d]
+              ? ((sum / totalPerDiagonal[d]) * 100).toFixed(1) + '%'
+              : sum;
+          } else {
+            td.textContent = '-';
+          }
+          tr.appendChild(td);
+        });
+
+        const tdTotal = document.createElement('td');
+        tdTotal.textContent = showPercent ? '' : personSum;
+        tdTotal.classList.add('total-col');
+        tr.appendChild(tdTotal);
+
+        const dayCount = daySet.size;
+        personDays[person] = dayCount;
+        personTotals[person] = personSum;
+        grandTotal += personSum;
+
+        const tdDay = document.createElement('td');
+        tdDay.textContent = dayCount;
+        tdDay.classList.add('day-col');
+        tr.appendChild(tdDay);
+
+        const tdPerDay = document.createElement('td');
+        tdPerDay.classList.add('perday-col');
+        if (dayCount > 0 && grandTotal > 0) {
+          const percent = ((personSum / grandTotal) * 100).toFixed(showPercent ? 1 : 0);
+          tdPerDay.textContent = showPercent ? percent + '%' : percent;
+        } else {
+          tdPerDay.textContent = '-';
+        }
+        tr.appendChild(tdPerDay);
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+
+      const tfoot = document.createElement('tfoot');
+      const footerRow = document.createElement('tr');
+
+      const tdLabel = document.createElement('td');
+      tdLabel.textContent = 'Итого';
+      footerRow.appendChild(tdLabel);
 
       diagonals.forEach(d => {
         const td = document.createElement('td');
-        if (stats[person][d]) {
-          const s = stats[person][d];
-          const daysCount = s.days.size;
-          const sum = s.OK + s.NDF;
-          totalPersonSum += sum;
-
-          if (showPercent) {
-            const percent = totalPerDiagonal[d] ? ((sum / totalPerDiagonal[d]) * 100).toFixed(1) : '0.0';
-            td.textContent = percent + '%';
-          } else {
-            td.textContent = sum;
-          }
-        } else {
-          td.textContent = '-';
-        }
-        tr.appendChild(td);
+        td.classList.add('total-col');
+        td.textContent = showPercent ? '100%' : totalPerDiagonal[d];
+        footerRow.appendChild(td);
       });
 
-      const tdTotal = document.createElement('td');
-      tdTotal.textContent = showPercent ? '' : totalPersonSum;
-      tdTotal.classList.add('total-col');
-      tr.appendChild(tdTotal);
+      const totalSumCell = document.createElement('td');
+      totalSumCell.classList.add('total-col');
+      totalSumCell.textContent = showPercent ? '' : grandTotal;
+      footerRow.appendChild(totalSumCell);
 
-      // Days column
-      const totalDays = stats[person]._days.size;
-      const tdDays = document.createElement('td');
-      tdDays.textContent = totalDays > 0 ? totalDays : '-';
-      tr.appendChild(tdDays);
+      const tdDayTotal = document.createElement('td');
+      tdDayTotal.classList.add('day-col');
+      tdDayTotal.textContent = '-';
+      footerRow.appendChild(tdDayTotal);
 
-      // Avg per day column
-      const tdAvg = document.createElement('td');
-      if (totalDays > 0) {
-        const avg = totalPersonSum / totalDays;
-        tdAvg.textContent = showAverageAsPercent ? (avg.toFixed(1) + '%') : avg.toFixed(1);
-      } else {
-        tdAvg.textContent = '-';
-      }
-      tr.appendChild(tdAvg);
+      const tdPerDayTotal = document.createElement('td');
+      tdPerDayTotal.classList.add('perday-col');
+      tdPerDayTotal.textContent = grandTotal;
+      footerRow.appendChild(tdPerDayTotal);
 
-      tbody.appendChild(tr);
-    });
+      tfoot.appendChild(footerRow);
+      table.appendChild(tfoot);
 
-    table.appendChild(tbody);
-
-    // Итоговая строка
-    const tfoot = document.createElement('tfoot');
-    const footerRow = document.createElement('tr');
-    const footerNameCell = document.createElement('td');
-    footerNameCell.textContent = 'Итого';
-    footerNameCell.style.textAlign = 'left';
-    footerRow.appendChild(footerNameCell);
-
-    diagonals.forEach(d => {
-      const td = document.createElement('td');
-      td.classList.add('total-col');
-      td.textContent = showPercent ? '100%' : totalPerDiagonal[d];
-      footerRow.appendChild(td);
-    });
-
-    footerRow.appendChild(document.createElement('td')); // Итого
-    footerRow.appendChild(document.createElement('td')); // 1 day
-    footerRow.appendChild(document.createElement('td')); // %Per day
-
-    tfoot.appendChild(footerRow);
-    table.appendChild(tfoot);
-
-    container.appendChild(table);
-
-    // Кнопка в заголовке
-    document.getElementById('toggle-avg-inner').addEventListener('click', () => {
-      showAverageAsPercent = !showAverageAsPercent;
-      renderTable(stats);
-    });
-  }
-
-  function populateMonthSelect() {
-    const select = document.getElementById('month-select');
-    const now = new Date();
-    const monthsToShow = 12;
-
-    for (let i = 0; i < monthsToShow; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-      const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
-      const option = new Option(capitalizedLabel, value);
-      select.appendChild(option);
+      container.appendChild(table);
     }
-  }
 
-  async function updateDetailedStats() {
-    const selectedMonth = document.getElementById('month-select').value;
-    const [year, month] = selectedMonth.split('-').map(Number);
-    const combinedData = await fetchData();
+    function populateMonthSelect() {
+      const select = document.getElementById('month-select');
+      const now = new Date();
+      for (let i = 0; i < 12; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+        const capitalizedLabel = label.charAt(0).toUpperCase() + label.slice(1);
+        const option = new Option(capitalizedLabel, value);
+        select.appendChild(option);
+      }
+    }
 
-    const filtered = combinedData.filter(record => {
-      const dateStr = record.date?.split(' ')[0];
-      if (!dateStr) return false;
-      const date = new Date(dateStr);
-      return date.getFullYear() === year && (date.getMonth() + 1) === month;
-    });
+    let showPercent = false;
 
-    const stats = calculateDetailedStats(filtered);
-    renderTable(stats);
-  }
+    async function updateDetailedStats() {
+      const selectedMonth = document.getElementById('month-select').value;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const combinedData = await fetchData();
 
-  document.addEventListener('DOMContentLoaded', () => {
-    populateMonthSelect();
-    document.getElementById('month-select').addEventListener('change', updateDetailedStats);
-    document.getElementById('toggle-percent').addEventListener('click', () => {
-      showPercent = !showPercent;
+      const filtered = combinedData.filter(record => {
+        const dateStr = record.date?.split(' ')[0];
+        if (!dateStr) return false;
+        const date = new Date(dateStr);
+        return date.getFullYear() === year && (date.getMonth() + 1) === month;
+      });
+
+      const stats = calculateDetailedStats(filtered);
+      renderTable(stats, showPercent);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      populateMonthSelect();
+      document.getElementById('month-select').addEventListener('change', updateDetailedStats);
+      document.getElementById('toggle-percent').addEventListener('click', () => {
+        showPercent = !showPercent;
+        updateDetailedStats();
+        document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : 'Показать %';
+      });
       updateDetailedStats();
-      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : ' %';
     });
-    document.getElementById('toggle-avg').addEventListener('click', () => {
-      showAverageAsPercent = !showAverageAsPercent;
-      updateDetailedStats();
-    });
-    updateDetailedStats();
-  });
-</script>
-
+  </script>
 </body>
 </html>
