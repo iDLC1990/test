@@ -148,16 +148,17 @@
 
     function calculateDetailedStats(data) {
       const stats = {};
-      data.forEach(({ date, serial, status, person }) => {
+      data.forEach(({ date, serial, person }) => {
         const diagonal = getDiagonal(serial);
         if (!diagonal) return;
+        const day = date.split(' ')[0];
+        if (!day || !person) return;
 
         if (!stats[person]) stats[person] = {};
-        if (!stats[person][diagonal]) stats[person][diagonal] = { sum: 0, days: new Set() };
+        if (!stats[person][day]) stats[person][day] = {};
+        if (!stats[person][day][diagonal]) stats[person][day][diagonal] = 0;
 
-        stats[person][diagonal].sum++;
-        const day = date.split(' ')[0];
-        if (day) stats[person][diagonal].days.add(day);
+        stats[person][day][diagonal]++;
       });
       return stats;
     }
@@ -167,7 +168,9 @@
       container.innerHTML = '';
 
       const diagonals = Array.from(new Set(
-        Object.values(stats).flatMap(p => Object.keys(p).map(Number))
+        Object.values(stats).flatMap(p =>
+          Object.values(p).flatMap(day => Object.keys(day).map(Number))
+        )
       )).sort((a, b) => b - a);
 
       const people = Object.keys(stats).sort();
@@ -175,8 +178,6 @@
         container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
         return;
       }
-
-      let isPercentMode = false; // флаг для переключения
 
       const table = document.createElement('table');
       const thead = document.createElement('thead');
@@ -193,25 +194,27 @@
       });
 
       headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Day' }));
-      headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: '% per month' }));
 
-      const thTotal = document.createElement('th');
-      thTotal.textContent = 'Total';
-      thTotal.className = 'total-col';
-      thTotal.style.cursor = 'pointer';
-      thTotal.title = 'Нажмите, чтобы переключить отображение Total в процентах';
-      headerRow.appendChild(thTotal);
+      const thPercentToggle = document.createElement('th');
+      thPercentToggle.textContent = 'Ø';
+      thPercentToggle.style.cursor = 'pointer';
+      headerRow.appendChild(thPercentToggle);
+
+      const thTotalToggle = document.createElement('th');
+      thTotalToggle.textContent = 'Total';
+      thTotalToggle.className = 'total-col';
+      thTotalToggle.style.cursor = 'pointer';
+      headerRow.appendChild(thTotalToggle);
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
 
+      const personData = {};
       let globalTotal = 0;
       const totalPerDiagonal = {};
       diagonals.forEach(d => totalPerDiagonal[d] = 0);
-
-      const personTotals = {};
 
       people.forEach(person => {
         const tr = document.createElement('tr');
@@ -219,47 +222,57 @@
         tdName.textContent = person;
         tr.appendChild(tdName);
 
+        const diagCounts = {};
         let total = 0;
-        let days = new Set();
+        const days = Object.keys(stats[person]);
+
+        days.forEach(day => {
+          const daily = stats[person][day];
+          Object.entries(daily).forEach(([diag, count]) => {
+            diag = Number(diag);
+            if (!diagCounts[diag]) diagCounts[diag] = 0;
+            diagCounts[diag] += count;
+            totalPerDiagonal[diag] += count;
+            total += count;
+          });
+        });
 
         diagonals.forEach(d => {
           const td = document.createElement('td');
-          if (stats[person][d]) {
-            const sum = stats[person][d].sum;
-            total += sum;
-            totalPerDiagonal[d] += sum;
-            stats[person][d].days.forEach(day => days.add(day));
-            td.textContent = sum;
-          } else {
-            td.textContent = '-';
-          }
+          td.textContent = diagCounts[d] || '-';
           tr.appendChild(td);
         });
 
-        globalTotal += total;
-        personTotals[person] = total;
-
         const tdDays = document.createElement('td');
-        tdDays.textContent = days.size;
+        tdDays.textContent = days.length;
         tr.appendChild(tdDays);
 
         const tdPercent = document.createElement('td');
-        tdPercent.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
+        tdPercent.className = 'percent-cell';
+        tdPercent.textContent = ((total / globalTotal) * 100).toFixed(1) + '%';
         tr.appendChild(tdPercent);
 
         const tdTotal = document.createElement('td');
+        tdTotal.className = 'total-col';
         tdTotal.textContent = total;
-        tdTotal.classList.add('total-col');
         tr.appendChild(tdTotal);
 
         tbody.appendChild(tr);
+
+        globalTotal += total;
+        personData[person] = {
+          total,
+          dayCount: days.length,
+          avgPerDay: days.length ? (total / days.length).toFixed(1) : '0',
+          diagCounts,
+          row: tr
+        };
       });
 
       table.appendChild(tbody);
 
       const tfoot = document.createElement('tfoot');
       const footerRow = document.createElement('tr');
-
       const tdLabel = document.createElement('td');
       tdLabel.textContent = 'Total Repaired';
       footerRow.appendChild(tdLabel);
@@ -271,16 +284,12 @@
         footerRow.appendChild(td);
       });
 
-      const tdEmptyDay = document.createElement('td');
-      const tdEmptyPercent = document.createElement('td');
-      tdEmptyDay.textContent = '';
-      tdEmptyPercent.textContent = '';
-      footerRow.appendChild(tdEmptyDay);
-      footerRow.appendChild(tdEmptyPercent);
+      footerRow.appendChild(document.createElement('td'));
+      footerRow.appendChild(document.createElement('td'));
 
       const tdTotalAll = document.createElement('td');
-      tdTotalAll.textContent = globalTotal;
       tdTotalAll.classList.add('total-col');
+      tdTotalAll.textContent = globalTotal;
       footerRow.appendChild(tdTotalAll);
 
       tfoot.appendChild(footerRow);
@@ -288,18 +297,34 @@
 
       container.appendChild(table);
 
-      // Обработка клика по заголовку "Total"
-      thTotal.addEventListener('click', () => {
-        isPercentMode = !isPercentMode;
-        tbody.querySelectorAll('tr').forEach(tr => {
-          const personName = tr.firstChild.textContent;
-          const total = personTotals[personName];
-          const td = tr.lastChild;
-          if (isPercentMode) {
-            td.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
+      let percentMode = false;
+      let totalMode = false;
+
+      thPercentToggle.addEventListener('click', () => {
+        percentMode = !percentMode;
+        thPercentToggle.textContent = percentMode ? '%' : 'Ø';
+
+        people.forEach(p => {
+          const { total, dayCount, diagCounts, row } = personData[p];
+          const cell = row.children[row.children.length - 2];
+          if (percentMode) {
+            const diagPercents = Object.entries(diagCounts)
+              .map(([diag, val]) => `${diag}: ${(val / total * 100).toFixed(0)}%`)
+              .join(' | ');
+            cell.textContent = diagPercents || '0%';
           } else {
-            td.textContent = total;
+            cell.textContent = dayCount ? (total / dayCount).toFixed(1) : '0';
           }
+        });
+      });
+
+      thTotalToggle.addEventListener('click', () => {
+        totalMode = !totalMode;
+        thTotalToggle.textContent = totalMode ? '% Total' : 'Total';
+        people.forEach(p => {
+          const { total, row } = personData[p];
+          const cell = row.children[row.children.length - 1];
+          cell.textContent = totalMode ? ((total / globalTotal) * 100).toFixed(1) + '%' : total;
         });
       });
     }
@@ -307,43 +332,37 @@
     function populateMonthSelect() {
       const select = document.getElementById('month-select');
       const now = new Date();
-
       for (let i = 0; i < 12; i++) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
+        const option = new Option(label.charAt(0).toUpperCase() + label.slice(1), value);
         select.appendChild(option);
       }
-      select.selectedIndex = 0;
     }
 
-    function filterDataByMonth(data, monthStr) {
-      return data.filter(item => {
-        if (!item.date) return false;
-        const [year, month] = monthStr.split('-').map(Number);
-        const itemDate = new Date(item.date);
-        return itemDate.getFullYear() === year && (itemDate.getMonth() + 1) === month;
+    async function updateDetailedStats() {
+      const selectedMonth = document.getElementById('month-select').value;
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const combinedData = await fetchData();
+
+      const filtered = combinedData.filter(record => {
+        const dateStr = record.date?.split(' ')[0];
+        if (!dateStr) return false;
+        const date = new Date(dateStr);
+        return date.getFullYear() === year && (date.getMonth() + 1) === month;
       });
+
+      const stats = calculateDetailedStats(filtered);
+      renderTable(stats);
     }
 
-    async function init() {
+    document.addEventListener('DOMContentLoaded', () => {
       populateMonthSelect();
-      let allData = await fetchData();
-
-      const select = document.getElementById('month-select');
-      function updateTable() {
-        const filtered = filterDataByMonth(allData, select.value);
-        const stats = calculateDetailedStats(filtered);
-        renderTable(stats);
-      }
-      select.addEventListener('change', updateTable);
-      updateTable();
-    }
-
-    init();
+      document.getElementById('month-select').addEventListener('change', updateDetailedStats);
+      updateDetailedStats();
+      setInterval(updateDetailedStats, 10000);
+    });
   </script>
 </body>
 </html>
