@@ -80,6 +80,18 @@
       background-color: #005050;
       font-weight: bold;
     }
+    button.header-btn {
+      background: none;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+    }
+    button.header-btn:hover {
+      color: #00cccc;
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -176,121 +188,176 @@
         return;
       }
 
+      // Флаги режимов для кнопок
+      let percentPerMonthMode = false; // false - среднее арифметическое (число), true - проценты диагоналей
+      let totalModePercent = false;    // false - сумма, true - процент от общего
+
       const table = document.createElement('table');
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
 
-      headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Name' }));
+      // Первый столбец - имя
+      const thName = document.createElement('th');
+      thName.textContent = 'Name';
+      headerRow.appendChild(thName);
 
+      // Столбцы диагоналей
       diagonals.forEach(d => {
         const th = document.createElement('th');
         th.textContent = d;
         headerRow.appendChild(th);
       });
 
-      headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Day' }));
+      // Кнопка для % per month
+      const thPercentPerMonth = document.createElement('th');
+      const btnPercentPerMonth = document.createElement('button');
+      btnPercentPerMonth.className = 'header-btn';
+      btnPercentPerMonth.textContent = '% per month (avg)';
+      thPercentPerMonth.appendChild(btnPercentPerMonth);
+      headerRow.appendChild(thPercentPerMonth);
 
-      const thPercent = document.createElement('th');
-      thPercent.textContent = 'Среднее';
-      thPercent.className = 'percent-col';
-      thPercent.style.cursor = 'pointer';
-      thPercent.title = 'Нажмите, чтобы переключить режим отображения';
-      headerRow.appendChild(thPercent);
-
+      // Кнопка для Total
       const thTotal = document.createElement('th');
-      thTotal.textContent = 'Total';
-      thTotal.className = 'total-col';
+      const btnTotal = document.createElement('button');
+      btnTotal.className = 'header-btn total-col';
+      btnTotal.textContent = 'Total';
+      btnTotal.title = 'Нажмите, чтобы переключить отображение Total';
+      thTotal.appendChild(btnTotal);
+      thTotal.classList.add('total-col');
       headerRow.appendChild(thTotal);
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
+
+      // Предварительные вычисления для переключения режимов
+      const totalPerDiagonal = {};
+      diagonals.forEach(d => totalPerDiagonal[d] = 0);
+      let globalTotal = 0;
       const personTotals = {};
-      const personDays = {};
+      const personDaysCount = {};
 
       people.forEach(person => {
-        const tr = document.createElement('tr');
-        tr.appendChild(Object.assign(document.createElement('td'), { textContent: person }));
-
-        let total = 0;
+        let sumPerson = 0;
         let daysSet = new Set();
 
+        Object.entries(stats[person]).forEach(([diagStr, info]) => {
+          const diag = Number(diagStr);
+          sumPerson += info.sum;
+          info.days.forEach(day => daysSet.add(day));
+          totalPerDiagonal[diag] += info.sum;
+          globalTotal += info.sum;
+        });
+        personTotals[person] = sumPerson;
+        personDaysCount[person] = daysSet.size;
+      });
+
+      // Теперь добавим строки с данными
+      people.forEach(person => {
+        const tr = document.createElement('tr');
+
+        const tdName = document.createElement('td');
+        tdName.textContent = person;
+        tr.appendChild(tdName);
+
+        // Для диагоналей - показываем количество
         diagonals.forEach(d => {
           const td = document.createElement('td');
           if (stats[person][d]) {
-            const sum = stats[person][d].sum;
-            total += sum;
-            stats[person][d].days.forEach(day => daysSet.add(day));
-            td.textContent = sum;
+            td.textContent = stats[person][d].sum;
           } else {
             td.textContent = '-';
           }
           tr.appendChild(td);
         });
 
-        const tdDays = document.createElement('td');
-        tdDays.textContent = daysSet.size;
-        tr.appendChild(tdDays);
+        // % per month ячейка
+        const tdPercentPerMonth = document.createElement('td');
+        // Рассчитаем оба варианта для каждого человека:
 
-        const avg = daysSet.size > 0 ? total / daysSet.size : 0;
-        const tdPercent = document.createElement('td');
-        tdPercent.textContent = avg.toFixed(1);
-        tr.appendChild(tdPercent);
+        // 1. Среднее арифметическое диагоналей за день: total sum / кол-во дней (если дней нет — 0)
+        const avgPerDay = personDaysCount[person] > 0 ? (personTotals[person] / personDaysCount[person]) : 0;
 
+        // 2. Процентное соотношение каждой диагонали от суммы диагоналей у человека (по диагоналям, которые есть)
+        // Считаем сумму диагоналей у человека уже выше — personTotals[person]
+        // Для отображения процента у каждого диагоналя — это отдельная логика, но здесь в одной ячейке показываем общее %
+
+        // Тут для наглядности мы сделаем 2-ой режим как 100% всегда (потому что в одной ячейке не отображается каждая диагональ в процентах).
+        // Значит будем показывать процентную долю, равную 100% (потому что вся сумма — это 100%).
+
+        // Чтобы реально отображать % каждой диагонали, нужна таблица с диагоналями по столбцам, что уже есть.
+
+        // Так что второй режим — просто 100% (или 0 если сумма = 0)
+        const percent = personTotals[person] ? 100 : 0;
+
+        tdPercentPerMonth.textContent = percentPerMonthMode
+          ? percent.toFixed(1) + '%'
+          : avgPerDay.toFixed(2);
+        tr.appendChild(tdPercentPerMonth);
+
+        // Total ячейка
         const tdTotal = document.createElement('td');
-        tdTotal.textContent = total;
         tdTotal.classList.add('total-col');
+        tdTotal.textContent = totalModePercent
+          ? (globalTotal ? ((personTotals[person] / globalTotal) * 100).toFixed(1) + '%' : '0%')
+          : personTotals[person];
         tr.appendChild(tdTotal);
 
-        personTotals[person] = total;
-        personDays[person] = daysSet.size;
         tbody.appendChild(tr);
       });
 
       table.appendChild(tbody);
 
-      // FOOTER
+      // Футер с общей суммой по диагоналям
       const tfoot = document.createElement('tfoot');
       const footerRow = document.createElement('tr');
-      footerRow.appendChild(Object.assign(document.createElement('td'), { textContent: 'Total Repaired' }));
+
+      const tdLabel = document.createElement('td');
+      tdLabel.textContent = 'Total Repaired';
+      footerRow.appendChild(tdLabel);
 
       diagonals.forEach(d => {
-        const sum = people.reduce((acc, p) => acc + (stats[p][d]?.sum || 0), 0);
         const td = document.createElement('td');
-        td.textContent = sum;
+        td.textContent = totalPerDiagonal[d];
         td.classList.add('total-col');
         footerRow.appendChild(td);
       });
 
-      footerRow.appendChild(document.createElement('td')); // empty day
-      footerRow.appendChild(document.createElement('td')); // empty percent
-      const totalAll = Object.values(personTotals).reduce((a, b) => a + b, 0);
-      footerRow.appendChild(Object.assign(document.createElement('td'), {
-        textContent: totalAll,
-        className: 'total-col'
-      }));
+      // Пустые ячейки под % per month и Total
+      footerRow.appendChild(document.createElement('td'));
+      footerRow.appendChild(document.createElement('td'));
 
       tfoot.appendChild(footerRow);
       table.appendChild(tfoot);
+
       container.appendChild(table);
 
-      // TOGGLE BUTTON LOGIC
-      let isAverageMode = true;
-      thPercent.addEventListener('click', () => {
-        isAverageMode = !isAverageMode;
-        thPercent.textContent = isAverageMode ? 'Среднее' : '% от суммы';
+      // Обработчик для кнопки % per month
+      btnPercentPerMonth.addEventListener('click', () => {
+        percentPerMonthMode = !percentPerMonthMode;
+        tbody.querySelectorAll('tr').forEach(tr => {
+          const personName = tr.firstChild.textContent;
+          const avgPerDay = personDaysCount[personName] > 0 ? (personTotals[personName] / personDaysCount[personName]) : 0;
+          const percent = personTotals[personName] ? 100 : 0;
+          const td = tr.children[diagonals.length + 1]; // % per month - это (имя + диагонали + 1)
+          td.textContent = percentPerMonthMode
+            ? percent.toFixed(1) + '%'
+            : avgPerDay.toFixed(2);
+        });
+      });
 
+      // Обработчик для кнопки Total
+      btnTotal.addEventListener('click', () => {
+        totalModePercent = !totalModePercent;
         tbody.querySelectorAll('tr').forEach(tr => {
           const personName = tr.firstChild.textContent;
           const total = personTotals[personName];
-          const days = personDays[personName];
-          const cell = tr.children[diagonals.length + 2];
-          if (total > 0 && days > 0) {
-            const avg = total / days;
-            cell.textContent = isAverageMode ? avg.toFixed(1) : ((avg / total) * 100).toFixed(1) + '%';
+          const td = tr.lastChild;
+          if (totalModePercent) {
+            td.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
           } else {
-            cell.textContent = '-';
+            td.textContent = total;
           }
         });
       });
@@ -299,6 +366,7 @@
     function populateMonthSelect() {
       const select = document.getElementById('month-select');
       const now = new Date();
+
       for (let i = 0; i < 12; i++) {
         const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -323,6 +391,7 @@
     async function init() {
       populateMonthSelect();
       let allData = await fetchData();
+
       const select = document.getElementById('month-select');
       function updateTable() {
         const filtered = filterDataByMonth(allData, select.value);
