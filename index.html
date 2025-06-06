@@ -94,8 +94,8 @@
     <div class="controls">
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
-      <button id="toggle-percent">Показать %</button>
-      <button id="toggle-avg">Переключить %/число</button>
+      <button id="toggle-percent"> %Per month</button>
+      <button id="toggle-avg">%</button>
     </div>
   </div>
 
@@ -353,7 +353,7 @@
     document.getElementById('toggle-percent').addEventListener('click', () => {
       showPercent = !showPercent;
       updateDetailedStats();
-      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : 'Показать %';
+      document.getElementById('toggle-percent').textContent = showPercent ? 'Показать детали' : ' %';
     });
     document.getElementById('toggle-avg').addEventListener('click', () => {
       showAverageAsPercent = !showAverageAsPercent;
