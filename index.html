@@ -90,6 +90,9 @@
       background-color: #005050;
       font-weight: bold;
     }
+    tbody tr:first-child td {
+  background-color: #215d5d !important;
+}
   </style>
 </head>
 <body>
@@ -186,7 +189,10 @@
       const table = document.createElement('table');
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
-      headerRow.appendChild(document.createElement('th'));
+const firstHeader = document.createElement('th');
+firstHeader.textContent = '1'; // 
+headerRow.appendChild(firstHeader);
+
       diagonals.forEach(d => {
         const th = document.createElement('th');
         th.textContent = d;
