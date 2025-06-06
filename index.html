@@ -176,15 +176,11 @@
         return;
       }
 
-      let isPercentMode = false; // флаг для переключения
-
       const table = document.createElement('table');
       const thead = document.createElement('thead');
       const headerRow = document.createElement('tr');
 
-      const thName = document.createElement('th');
-      thName.textContent = 'Name';
-      headerRow.appendChild(thName);
+      headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Name' }));
 
       diagonals.forEach(d => {
         const th = document.createElement('th');
@@ -193,49 +189,40 @@
       });
 
       headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: 'Day' }));
-      headerRow.appendChild(Object.assign(document.createElement('th'), { textContent: '% per month' }));
+
+      const thPercent = document.createElement('th');
+      thPercent.textContent = 'Среднее';
+      thPercent.className = 'percent-col';
+      thPercent.style.cursor = 'pointer';
+      thPercent.title = 'Нажмите, чтобы переключить режим отображения';
+      headerRow.appendChild(thPercent);
 
       const thTotal = document.createElement('th');
       thTotal.textContent = 'Total';
       thTotal.className = 'total-col';
-      thTotal.style.cursor = 'pointer';
-      thTotal.title = 'Нажмите, чтобы переключить отображение Total в процентах';
       headerRow.appendChild(thTotal);
 
       thead.appendChild(headerRow);
       table.appendChild(thead);
 
       const tbody = document.createElement('tbody');
-
-      // Сначала считаем total для каждого человека и общий total
       const personTotals = {};
-      let globalTotal = 0;
+      const personDays = {};
 
-      people.forEach(person => {
-        let total = 0;
-        diagonals.forEach(d => {
-          if (stats[person][d]) {
-            total += stats[person][d].sum;
-          }
-        });
-        personTotals[person] = total;
-        globalTotal += total;
-      });
-
-      // Теперь рендерим строки с правильными процентами
       people.forEach(person => {
         const tr = document.createElement('tr');
-        const tdName = document.createElement('td');
-        tdName.textContent = person;
-        tr.appendChild(tdName);
+        tr.appendChild(Object.assign(document.createElement('td'), { textContent: person }));
 
-        let days = new Set();
+        let total = 0;
+        let daysSet = new Set();
 
         diagonals.forEach(d => {
           const td = document.createElement('td');
           if (stats[person][d]) {
-            td.textContent = stats[person][d].sum;
-            stats[person][d].days.forEach(day => days.add(day));
+            const sum = stats[person][d].sum;
+            total += sum;
+            stats[person][d].days.forEach(day => daysSet.add(day));
+            td.textContent = sum;
           } else {
             td.textContent = '-';
           }
@@ -243,137 +230,110 @@
         });
 
         const tdDays = document.createElement('td');
-        tdDays.textContent = days.size;
+        tdDays.textContent = daysSet.size;
         tr.appendChild(tdDays);
 
+        const avg = daysSet.size > 0 ? total / daysSet.size : 0;
         const tdPercent = document.createElement('td');
-        tdPercent.textContent = globalTotal ? ((personTotals[person] / globalTotal) * 100).toFixed(1) + '%' : '0%';
+        tdPercent.textContent = avg.toFixed(1);
         tr.appendChild(tdPercent);
 
         const tdTotal = document.createElement('td');
-        tdTotal.textContent = personTotals[person];
+        tdTotal.textContent = total;
         tdTotal.classList.add('total-col');
         tr.appendChild(tdTotal);
 
+        personTotals[person] = total;
+        personDays[person] = daysSet.size;
         tbody.appendChild(tr);
       });
 
       table.appendChild(tbody);
 
-      // Футер с итогами по диагоналям и общим total
+      // FOOTER
       const tfoot = document.createElement('tfoot');
       const footerRow = document.createElement('tr');
-
-      const tdLabel = document.createElement('td');
-      tdLabel.textContent = 'Total Repaired';
-      footerRow.appendChild(tdLabel);
-
-      const totalPerDiagonal = {};
-      diagonals.forEach(d => totalPerDiagonal[d] = 0);
-
-      people.forEach(person => {
-        diagonals.forEach(d => {
-          if (stats[person][d]) {
-            totalPerDiagonal[d] += stats[person][d].sum;
-          }
-        });
-      });
+      footerRow.appendChild(Object.assign(document.createElement('td'), { textContent: 'Total Repaired' }));
 
       diagonals.forEach(d => {
+        const sum = people.reduce((acc, p) => acc + (stats[p][d]?.sum || 0), 0);
         const td = document.createElement('td');
-        td.textContent = totalPerDiagonal[d];
+        td.textContent = sum;
         td.classList.add('total-col');
         footerRow.appendChild(td);
       });
 
-      const tdEmptyDay = document.createElement('td');
-      const tdEmptyPercent = document.createElement('td');
-      tdEmptyDay.textContent = '';
-      tdEmptyPercent.textContent = '';
-      footerRow.appendChild(tdEmptyDay);
-      footerRow.appendChild(tdEmptyPercent);
-
-      const tdTotalAll = document.createElement('td');
-      tdTotalAll.textContent = globalTotal;
-      tdTotalAll.classList.add('total-col');
-      footerRow.appendChild(tdTotalAll);
+      footerRow.appendChild(document.createElement('td')); // empty day
+      footerRow.appendChild(document.createElement('td')); // empty percent
+      const totalAll = Object.values(personTotals).reduce((a, b) => a + b, 0);
+      footerRow.appendChild(Object.assign(document.createElement('td'), {
+        textContent: totalAll,
+        className: 'total-col'
+      }));
 
       tfoot.appendChild(footerRow);
       table.appendChild(tfoot);
-
       container.appendChild(table);
 
-      // Обработка клика по заголовку "Total" для переключения отображения
-      thTotal.addEventListener('click', () => {
-        isPercentMode = !isPercentMode;
+      // TOGGLE BUTTON LOGIC
+      let isAverageMode = true;
+      thPercent.addEventListener('click', () => {
+        isAverageMode = !isAverageMode;
+        thPercent.textContent = isAverageMode ? 'Среднее' : '% от суммы';
+
         tbody.querySelectorAll('tr').forEach(tr => {
           const personName = tr.firstChild.textContent;
           const total = personTotals[personName];
-          const td = tr.lastChild;
-          if (isPercentMode) {
-            td.textContent = globalTotal ? ((total / globalTotal) * 100).toFixed(1) + '%' : '0%';
+          const days = personDays[personName];
+          const cell = tr.children[diagonals.length + 2];
+          if (total > 0 && days > 0) {
+            const avg = total / days;
+            cell.textContent = isAverageMode ? avg.toFixed(1) : ((avg / total) * 100).toFixed(1) + '%';
           } else {
-            td.textContent = total;
+            cell.textContent = '-';
           }
         });
       });
     }
 
-    // Функция для загрузки месяцев в селект
-    function fillMonthsDropdown(months) {
+    function populateMonthSelect() {
       const select = document.getElementById('month-select');
-      select.innerHTML = '';
-      months.forEach(month => {
+      const now = new Date();
+      for (let i = 0; i < 12; i++) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        const label = date.toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
         const option = document.createElement('option');
-        option.value = month;
-        option.textContent = month;
+        option.value = value;
+        option.textContent = label.charAt(0).toUpperCase() + label.slice(1);
         select.appendChild(option);
-      });
-    }
-
-    // Парсим и получаем список месяцев из данных
-    function extractMonths(data) {
-      const months = new Set();
-      data.forEach(({ date }) => {
-        if (date) {
-          const m = date.split(' ')[0].slice(0, 7); // yyyy-mm
-          months.add(m);
-        }
-      });
-      return Array.from(months).sort().reverse();
-    }
-
-    async function main() {
-      const rawData = await fetchData();
-
-      // Получаем список месяцев
-      const months = extractMonths(rawData);
-      fillMonthsDropdown(months);
-
-      const select = document.getElementById('month-select');
-      function filterByMonth(month) {
-        const filtered = rawData.filter(item => item.date && item.date.startsWith(month));
-        return filtered;
       }
+      select.selectedIndex = 0;
+    }
 
-      function refreshTable() {
-        const month = select.value;
-        const filteredData = filterByMonth(month);
-        const stats = calculateDetailedStats(filteredData);
+    function filterDataByMonth(data, monthStr) {
+      return data.filter(item => {
+        if (!item.date) return false;
+        const [year, month] = monthStr.split('-').map(Number);
+        const itemDate = new Date(item.date);
+        return itemDate.getFullYear() === year && (itemDate.getMonth() + 1) === month;
+      });
+    }
+
+    async function init() {
+      populateMonthSelect();
+      let allData = await fetchData();
+      const select = document.getElementById('month-select');
+      function updateTable() {
+        const filtered = filterDataByMonth(allData, select.value);
+        const stats = calculateDetailedStats(filtered);
         renderTable(stats);
       }
-
-      select.addEventListener('change', refreshTable);
-
-      if (months.length > 0) {
-        select.value = months[0];
-        refreshTable();
-      } else {
-        document.getElementById('stats-container').innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных</p>';
-      }
+      select.addEventListener('change', updateTable);
+      updateTable();
     }
 
-    main();
+    init();
   </script>
 </body>
 </html>
