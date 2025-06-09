@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA 2025 - Диагонали</title>
+  <title>LCDR LIVE DATA 2025 </title>
   <style>
     body {
       background-color: #000;
@@ -85,7 +85,7 @@
 </head>
 <body>
   <div class="header">
-    <h1>LCDR LIVE DATA 2025 - Диагонали</h1>
+    <h1>LCDR LIVE DATA 2025 - </h1>
     <div class="controls">
       <label for="month-select" class="date-info">Wybierz miesiąc:</label>
       <select id="month-select"></select>
@@ -152,7 +152,7 @@
     function calculateDetailedStats(data) {
       const stats = {};
       data.forEach(({ date, serial, status, person }) => {
-        if (!validStatuses.includes(status)) return; // учитываем только OK и NDF
+        if (!validStatuses.includes(status)) return; 
         const diagonal = getDiagonal(serial);
         if (!diagonal) return;
 
@@ -199,7 +199,7 @@
         personTotals[person] = total;
       });
 
-      // Сортируем людей по total по убыванию
+      
       people = people.sort((a, b) => (personTotals[b] || 0) - (personTotals[a] || 0));
 
       const table = document.createElement('table');
@@ -223,14 +223,14 @@
       const thPercentPerMonth = document.createElement('th');
       thPercentPerMonth.textContent = '%';
       thPercentPerMonth.style.cursor = 'pointer';
-      thPercentPerMonth.title = 'Клик для переключения режима: число / процент диагоналей';
+      thPercentPerMonth.title = '';
       headerRow.appendChild(thPercentPerMonth);
 
       const thTotal = document.createElement('th');
       thTotal.textContent = 'Total';
       thTotal.className = 'total-col';
       thTotal.style.cursor = 'pointer';
-      thTotal.title = 'Клик для переключения Total: число / % от общей суммы';
+      thTotal.title = '';
       headerRow.appendChild(thTotal);
 
       thead.appendChild(headerRow);
@@ -265,7 +265,7 @@
         tdDays.textContent = daysSet.size;
         tr.appendChild(tdDays);
 
-        // % per month - по умолчанию среднее (число)
+        
         const tdPercentPerMonth = document.createElement('td');
         const totalForPerson = personTotals[person];
         if (daysSet.size > 0) {
@@ -300,11 +300,11 @@
         footerRow.appendChild(td);
       });
 
-      // Пустые ячейки под Day и % per month
+      
       footerRow.appendChild(document.createElement('td'));
       footerRow.appendChild(document.createElement('td'));
 
-      // Общий total
+      
       const tdGlobalTotal = document.createElement('td');
       tdGlobalTotal.textContent = globalTotal;
       tdGlobalTotal.classList.add('total-col');
@@ -315,12 +315,12 @@
 
       container.appendChild(table);
 
-      // Обработчики
+      
 
       thPercentPerMonth.addEventListener('click', () => {
         percentPerMonthMode = !percentPerMonthMode;
 
-        // Обновляем диагонали (число или % от total по человеку)
+        
         tbody.querySelectorAll('tr').forEach(tr => {
           const personName = tr.firstChild.textContent;
           const statsPerson = stats[personName];
@@ -347,7 +347,7 @@
       thTotal.addEventListener('click', () => {
         totalModePercent = !totalModePercent;
 
-        // Обновляем total (число или % от общего)
+        
         tbody.querySelectorAll('tr').forEach(tr => {
           const personName = tr.firstChild.textContent;
           const totalForPerson = personTotals[personName];
@@ -365,7 +365,7 @@
           }
         });
 
-        // Обновляем футер
+        
         const footerTotalCell = table.querySelector('tfoot tr').lastChild;
         if (!totalModePercent) {
           footerTotalCell.textContent = globalTotal;
@@ -373,21 +373,21 @@
           footerTotalCell.textContent = '100%';
         }
 
-        // Пересортируем tbody по total (числу или проценту)
+        
         sortTableBody(tbody, totalModePercent);
       });
 
-      // Сортировка по Total при первоначальной отрисовке
+      
       sortTableBody(tbody, false);
 
-      // Функция сортировки tbody по Total столбцу (последний td)
+      
       function sortTableBody(tbody, isPercent) {
         const rows = Array.from(tbody.querySelectorAll('tr'));
         rows.sort((a, b) => {
           let valA = a.lastChild.textContent;
           let valB = b.lastChild.textContent;
 
-          // Если процент, убираем %, преобразуем в число
+          
           if (isPercent) {
             valA = parseFloat(valA.replace('%', '')) || 0;
             valB = parseFloat(valB.replace('%', '')) || 0;
@@ -395,7 +395,7 @@
             valA = parseInt(valA, 10) || 0;
             valB = parseInt(valB, 10) || 0;
           }
-          return valB - valA; // по убыванию
+          return valB - valA; 
         });
 
         rows.forEach(row => tbody.appendChild(row));
@@ -405,7 +405,7 @@
     async function update(month) {
       const allData = await fetchData();
 
-      // Фильтруем данные по месяцу: формат YYYY-MM (например 2025-06)
+      
       const filtered = allData.filter(d => d.date.startsWith(month));
 
       const stats = calculateDetailedStats(filtered);
