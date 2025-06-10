@@ -162,7 +162,7 @@
       )).sort((a, b) => b - a);
       let people = Object.keys(stats);
       if (people.length === 0) {
-        container.innerHTML = '<p style="text-align:center; margin-top:20px;">Нет данных для выбранного месяца</p>';
+        container.innerHTML = '<p style="text-align:center; margin-top:20px;"></p>';
         return;
       }
       let percentPerMonthMode = false;
