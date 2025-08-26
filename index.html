@@ -97,6 +97,8 @@
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
+
+    // алгоритм 2 — префиксы
     const diagonalMapPrefix = {
       'WH8': 55,
       'WC8': 32,
@@ -108,6 +110,8 @@
       'WW1': 75,
       'WM6': 50
     };
+
+    // алгоритм 1 — цифровые коды
     const diagonalMap = {
       '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
       '550': 55, '545': 55, '500': 50, '498': 50, '495': 50, '490': 50,
@@ -118,12 +122,29 @@
       '278': 27, '275': 27, '270': 27,
       '248': 24, '245': 24, '240': 24, '238': 24, '235': 24, '230': 24
     };
-    function getDiagonal(serial) {
-      if (!serial || serial.length < 6) return null;
-      const match = serial.toUpperCase().match(/^[A-Z]{3}(\d{3})/);
-      if (!match) return null;
-      return diagonalMap[match[1]] || null;
+
+    // новая версия: возвращает массив диагоналей (оба алгоритма)
+    function getDiagonals(serial) {
+      if (!serial || serial.length < 6) return [];
+
+      const upper = serial.toUpperCase();
+      const result = new Set();
+
+      // алгоритм 1 — цифры
+      const match = upper.match(/^[A-Z]{3}(\d{3})/);
+      if (match && diagonalMap[match[1]]) {
+        result.add(diagonalMap[match[1]]);
+      }
+
+      // алгоритм 2 — префиксы
+      const prefix = upper.slice(0, 3);
+      if (diagonalMapPrefix[prefix]) {
+        result.add(diagonalMapPrefix[prefix]);
+      }
+
+      return [...result]; // массив без дублей
     }
+
     async function getData(sheetName) {
       try {
         const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
@@ -134,6 +155,7 @@
         return [];
       }
     }
+
     async function fetchData() {
       const sheetNames = ['FI Station KOVALCHYK Y.', 'FI Station 2 ULANOVYCH.R'];
       let combined = [];
@@ -151,20 +173,29 @@
       }
       return combined;
     }
+
     function calculateDetailedStats(data) {
       const stats = {};
       data.forEach(({ date, serial, status, person }) => {
         if (!validStatuses.includes(status)) return; 
-        const diagonal = getDiagonal(serial);
-        if (!diagonal) return;
+
+        const diagonals = getDiagonals(serial);
+        if (diagonals.length === 0) return;
+
         if (!stats[person]) stats[person] = {};
-        if (!stats[person][diagonal]) stats[person][diagonal] = { sum: 0, days: new Set() };
-        stats[person][diagonal].sum++;
-        const day = date.split(' ')[0];
-        if (day) stats[person][diagonal].days.add(day);
+
+        diagonals.forEach(diagonal => {
+          if (!stats[person][diagonal]) {
+            stats[person][diagonal] = { sum: 0, days: new Set() };
+          }
+          stats[person][diagonal].sum++;
+          const day = date.split(' ')[0];
+          if (day) stats[person][diagonal].days.add(day);
+        });
       });
       return stats;
     }
+
     function renderTable(stats) {
       const container = document.getElementById('stats-container');
       container.innerHTML = '';
@@ -341,12 +372,14 @@
         rows.forEach(row => tbody.appendChild(row));
       }
     }
+
     async function update(month) {
       const allData = await fetchData();
       const filtered = allData.filter(d => d.date.startsWith(month));
       const stats = calculateDetailedStats(filtered);
       renderTable(stats);
     }
+
     function fillMonthSelect() {
       const select = document.getElementById('month-select');
       const now = new Date();
@@ -363,6 +396,7 @@
       select.value = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
       return select.value;
     }
+
     (async () => {
       const defaultMonth = fillMonthSelect();
       await update(defaultMonth);
@@ -373,7 +407,7 @@
       setInterval(() => {
         const currentMonth = document.getElementById('month-select').value;
         update(currentMonth);
-      }, 300000); //  60 
+      }, 300000); // 5 минут
     })();
   </script>
 </body>
