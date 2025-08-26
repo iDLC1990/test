@@ -97,6 +97,17 @@
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
+    const diagonalMapPrefix = {
+      'WH8': 55,
+      'WC8': 32,
+      'WU0': 43,
+      'SQ1': 43,
+      'WM5': 50,
+      'WC7': 32,
+      'WP5': 65,
+      'WW1': 75,
+      'WM6': 50
+    };
     const diagonalMap = {
       '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
       '550': 55, '545': 55, '500': 50, '498': 50, '495': 50, '490': 50,
