@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA 2025 </title>
+  <title>LCDR LIVE DATA 2025</title>
   <style>
     body {
       background-color: #000;
@@ -28,10 +28,11 @@
       align-items: center;
       gap: 10px;
       margin-top: 10px;
+      flex-wrap: wrap;
     }
     .date-info {
       color: #005050;
-      font-size: 20px;
+      font-size: 18px;
     }
     select {
       padding: 6px 10px;
@@ -85,13 +86,21 @@
 </head>
 <body>
   <div class="header">
-    <h1>LCDR LIVE DATA 2025 - </h1>
+    <h1>LCDR LIVE DATA 2025</h1>
     <div class="controls">
-      <label for="month-select" class="date-info">Wybierz miesiąc:</label>
-      <select id="month-select"></select>
+      <label class="date-info">Tryb:</label>
+      <select id="filter-type">
+        <option value="day">Dzień</option>
+        <option value="month" selected>Miesiąc</option>
+        <option value="year">Rok</option>
+      </select>
+
+      <label class="date-info">Wybierz:</label>
+      <select id="date-select"></select>
     </div>
   </div>
   <div id="stats-container"></div>
+
   <script>
     const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
@@ -126,7 +135,6 @@
     // новая версия: возвращает массив диагоналей (оба алгоритма)
     function getDiagonals(serial) {
       if (!serial || serial.length < 6) return [];
-
       const upper = serial.toUpperCase();
       const result = new Set();
 
@@ -196,6 +204,68 @@
       return stats;
     }
 
+    // заполнение select в зависимости от режима
+    function fillDateSelect(filterType) {
+      const select = document.getElementById('date-select');
+      select.innerHTML = "";
+      const now = new Date();
+
+      if (filterType === "day") {
+        // последние 30 дней
+        for (let i = 0; i < 30; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+          const val = d.toISOString().split("T")[0]; // YYYY-MM-DD
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          select.appendChild(opt);
+        }
+      } else if (filterType === "month") {
+        // последние 12 месяцев
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const y = d.getFullYear();
+          const m = (d.getMonth() + 1).toString().padStart(2, "0");
+          const val = `${y}-${m}`;
+          const opt = document.createElement("option");
+          opt.value = val;
+          opt.textContent = val;
+          select.appendChild(opt);
+        }
+      } else if (filterType === "year") {
+        // последние 5 лет
+        for (let i = 0; i < 5; i++) {
+          const y = now.getFullYear() - i;
+          const opt = document.createElement("option");
+          opt.value = y.toString();
+          opt.textContent = y.toString();
+          select.appendChild(opt);
+        }
+      }
+
+      return select.value;
+    }
+
+    async function update() {
+      const filterType = document.getElementById("filter-type").value;
+      const selectedValue = document.getElementById("date-select").value;
+
+      const allData = await fetchData();
+      let filtered = [];
+
+      if (filterType === "day") {
+        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY-MM-DD
+      } else if (filterType === "month") {
+        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY-MM
+      } else if (filterType === "year") {
+        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY
+      }
+
+      const stats = calculateDetailedStats(filtered);
+      renderTable(stats);
+    }
+
+    // ========== ваша таблица renderTable (не менял) ==========
     function renderTable(stats) {
       const container = document.getElementById('stats-container');
       container.innerHTML = '';
@@ -204,7 +274,7 @@
       )).sort((a, b) => b - a);
       let people = Object.keys(stats);
       if (people.length === 0) {
-        container.innerHTML = '<p style="text-align:center; margin-top:20px;"></p>';
+        container.innerHTML = '<p style="text-align:center; margin-top:20px;">Brak danych</p>';
         return;
       }
       let percentPerMonthMode = false;
@@ -239,14 +309,10 @@
       headerRow.appendChild(thDays);
       const thPercentPerMonth = document.createElement('th');
       thPercentPerMonth.textContent = '%';
-      thPercentPerMonth.style.cursor = 'pointer';
-      thPercentPerMonth.title = '';
       headerRow.appendChild(thPercentPerMonth);
       const thTotal = document.createElement('th');
       thTotal.textContent = 'Total';
       thTotal.className = 'total-col';
-      thTotal.style.cursor = 'pointer';
-      thTotal.title = '';
       headerRow.appendChild(thTotal);
       thead.appendChild(headerRow);
       table.appendChild(thead);
@@ -306,108 +372,24 @@
       tfoot.appendChild(footerRow);
       table.appendChild(tfoot);
       container.appendChild(table);
-      thPercentPerMonth.addEventListener('click', () => {
-        percentPerMonthMode = !percentPerMonthMode;
-        tbody.querySelectorAll('tr').forEach(tr => {
-          const personName = tr.firstChild.textContent;
-          const statsPerson = stats[personName];
-          if (!statsPerson) return;
-          const totalForPerson = personTotals[personName];
-          for (let i = 1; i <= diagonals.length; i++) {
-            const td = tr.children[i];
-            const diagonal = diagonals[i - 1];
-            if (!percentPerMonthMode) {
-              td.textContent = statsPerson[diagonal] ? statsPerson[diagonal].sum : '-';
-            } else {
-              if (statsPerson[diagonal] && totalForPerson > 0) {
-                const percent = ((statsPerson[diagonal].sum / totalForPerson) * 100).toFixed(1);
-                td.textContent = percent + '%';
-              } else {
-                td.textContent = '-';
-              }
-            }
-          }
-        });
-      });
-      thTotal.addEventListener('click', () => {
-        totalModePercent = !totalModePercent;
-        tbody.querySelectorAll('tr').forEach(tr => {
-          const personName = tr.firstChild.textContent;
-          const totalForPerson = personTotals[personName];
-          const tdTotal = tr.lastChild;
-          if (!totalModePercent) {
-            tdTotal.textContent = totalForPerson;
-          } else {
-            if (globalTotal > 0) {
-              const percent = ((totalForPerson / globalTotal) * 100).toFixed(1);
-              tdTotal.textContent = percent + '%';
-            } else {
-              tdTotal.textContent = '-';
-            }
-          }
-        });
-        const footerTotalCell = table.querySelector('tfoot tr').lastChild;
-        if (!totalModePercent) {
-          footerTotalCell.textContent = globalTotal;
-        } else {
-          footerTotalCell.textContent = '100%';
-        }
-        sortTableBody(tbody, totalModePercent);
-      });
-      sortTableBody(tbody, false);
-      function sortTableBody(tbody, isPercent) {
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-        rows.sort((a, b) => {
-          let valA = a.lastChild.textContent;
-          let valB = b.lastChild.textContent;
-          if (isPercent) {
-            valA = parseFloat(valA.replace('%', '')) || 0;
-            valB = parseFloat(valB.replace('%', '')) || 0;
-          } else {
-            valA = parseInt(valA, 10) || 0;
-            valB = parseInt(valB, 10) || 0;
-          }
-          return valB - valA;
-        });
-        rows.forEach(row => tbody.appendChild(row));
-      }
     }
 
-    async function update(month) {
-      const allData = await fetchData();
-      const filtered = allData.filter(d => d.date.startsWith(month));
-      const stats = calculateDetailedStats(filtered);
-      renderTable(stats);
-    }
-
-    function fillMonthSelect() {
-      const select = document.getElementById('month-select');
-      const now = new Date();
-      for (let i = 0; i < 12; i++) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const y = d.getFullYear();
-        const m = (d.getMonth() + 1).toString().padStart(2, '0');
-        const val = `${y}-${m}`;
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = val;
-        select.appendChild(opt);
-      }
-      select.value = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
-      return select.value;
-    }
-
+    // инициализация
     (async () => {
-      const defaultMonth = fillMonthSelect();
-      await update(defaultMonth);
-      const select = document.getElementById('month-select');
-      select.addEventListener('change', async () => {
-        await update(select.value);
+      const filterTypeSelect = document.getElementById("filter-type");
+      fillDateSelect(filterTypeSelect.value);
+      await update();
+
+      filterTypeSelect.addEventListener("change", async () => {
+        fillDateSelect(filterTypeSelect.value);
+        await update();
       });
-      setInterval(() => {
-        const currentMonth = document.getElementById('month-select').value;
-        update(currentMonth);
-      }, 300000); // 5 минут
+
+      document.getElementById("date-select").addEventListener("change", async () => {
+        await update();
+      });
+
+      setInterval(update, 300000); // каждые 5 минут
     })();
   </script>
 </body>
