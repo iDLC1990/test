@@ -40,7 +40,7 @@
       border-radius: 5px;
       border: none;
     }
-    #stats-container {
+    #stats-container, #scrap-waiting-container {
       width: 90%;
       margin: 24px auto;
       overflow-x: auto;
@@ -82,6 +82,23 @@
       background-color: #005050;
       font-weight: bold;
     }
+    /* для scrap/waiting деления */
+    .cell-split {
+      display: flex;
+      justify-content: space-between;
+    }
+    .scrap {
+      color: #ff5555;
+    }
+    .waiting {
+      color: #55ff55;
+    }
+    details summary {
+      cursor: pointer;
+      font-size: 18px;
+      color: #005050;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
@@ -99,28 +116,25 @@
       <select id="date-select"></select>
     </div>
   </div>
+
   <div id="stats-container"></div>
+
+  <!-- Новая свертываемая таблица Scrap/Waiting -->
+  <details id="scrap-waiting-table">
+    <summary>Scrap / Waiting Stats</summary>
+    <div id="scrap-waiting-container"></div>
+  </details>
 
   <script>
     const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-    const sheetURL = https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/;
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
 
-    // алгоритм 2 — префиксы
     const diagonalMapPrefix = {
-      'WH8': 55,
-      'WC8': 32,
-      'WU0': 43,
-      'SQ1': 43,
-      'WM5': 50,
-      'WC7': 32,
-      'WP5': 65,
-      'WW1': 75,
-      'WM6': 50
+      'WH8': 55, 'WC8': 32, 'WU0': 43, 'SQ1': 43, 'WM5': 50, 'WC7': 32, 'WP5': 65, 'WW1': 75, 'WM6': 50
     };
 
-    // алгоритм 1 — цифровые коды
     const diagonalMap = {
       '860': 86, '850': 85, '750': 75, '700': 70, '650': 65, '580': 58, '575': 58,
       '550': 55, '545': 55, '500': 50, '498': 50, '495': 50, '490': 50,
@@ -132,30 +146,20 @@
       '248': 24, '245': 24, '240': 24, '238': 24, '235': 24, '230': 24
     };
 
-    // новая версия: возвращает массив диагоналей (оба алгоритма)
     function getDiagonals(serial) {
       if (!serial || serial.length < 6) return [];
       const upper = serial.toUpperCase();
       const result = new Set();
-
-      // алгоритм 1 — цифры
       const match = upper.match(/^[A-Z]{3}(\d{3})/);
-      if (match && diagonalMap[match[1]]) {
-        result.add(diagonalMap[match[1]]);
-      }
-
-      // алгоритм 2 — префиксы
+      if (match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
       const prefix = upper.slice(0, 3);
-      if (diagonalMapPrefix[prefix]) {
-        result.add(diagonalMapPrefix[prefix]);
-      }
-
-      return [...result]; // массив без дублей
+      if (diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
+      return [...result];
     }
 
     async function getData(sheetName) {
       try {
-        const response = await fetch(${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey});
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
         const data = await response.json();
         return data.values || [];
       } catch (err) {
@@ -185,17 +189,12 @@
     function calculateDetailedStats(data) {
       const stats = {};
       data.forEach(({ date, serial, status, person }) => {
-        if (!validStatuses.includes(status)) return; 
-
+        if (!validStatuses.includes(status)) return;
         const diagonals = getDiagonals(serial);
         if (diagonals.length === 0) return;
-
         if (!stats[person]) stats[person] = {};
-
         diagonals.forEach(diagonal => {
-          if (!stats[person][diagonal]) {
-            stats[person][diagonal] = { sum: 0, days: new Set() };
-          }
+          if (!stats[person][diagonal]) stats[person][diagonal] = { sum: 0, days: new Set() };
           stats[person][diagonal].sum++;
           const day = date.split(' ')[0];
           if (day) stats[person][diagonal].days.add(day);
@@ -204,68 +203,76 @@
       return stats;
     }
 
-    // заполнение select в зависимости от режима
+    function calculateScrapWaitingStats(data) {
+      const stats = {};
+      const scrapStatuses = ['SCRAP', 'TTL SCRAP', 'PNLA'];
+      const waitingStatuses = ['WAITING', 'TTL WAITING', 'PNLA'];
+
+      data.forEach(({ serial, status, person }) => {
+        if (!person || !serial || !status) return;
+        const upperStatus = status.toUpperCase();
+        if (![...scrapStatuses, ...waitingStatuses].includes(upperStatus)) return;
+        const diagonals = getDiagonals(serial);
+        if (diagonals.length === 0) return;
+        if (!stats[person]) stats[person] = {};
+        diagonals.forEach(diagonal => {
+          if (!stats[person][diagonal]) stats[person][diagonal] = { scrap: 0, waiting: 0 };
+          if (scrapStatuses.includes(upperStatus)) stats[person][diagonal].scrap++;
+          if (waitingStatuses.includes(upperStatus)) stats[person][diagonal].waiting++;
+        });
+      });
+      return stats;
+    }
+
     function fillDateSelect(filterType) {
       const select = document.getElementById('date-select');
       select.innerHTML = "";
       const now = new Date();
-
       if (filterType === "day") {
-        // последние 30 дней
         for (let i = 0; i < 30; i++) {
           const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-          const val = d.toISOString().split("T")[0]; // YYYY-MM-DD
+          const val = d.toISOString().split("T")[0];
           const opt = document.createElement("option");
-          opt.value = val;
-          opt.textContent = val;
+          opt.value = val; opt.textContent = val;
           select.appendChild(opt);
         }
       } else if (filterType === "month") {
-        // последние 12 месяцев
         for (let i = 0; i < 12; i++) {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const y = d.getFullYear();
           const m = (d.getMonth() + 1).toString().padStart(2, "0");
-          const val = ${y}-${m};
+          const val = `${y}-${m}`;
           const opt = document.createElement("option");
-          opt.value = val;
-          opt.textContent = val;
+          opt.value = val; opt.textContent = val;
           select.appendChild(opt);
         }
       } else if (filterType === "year") {
-        // последние 5 лет
         for (let i = 0; i < 5; i++) {
           const y = now.getFullYear() - i;
           const opt = document.createElement("option");
-          opt.value = y.toString();
-          opt.textContent = y.toString();
+          opt.value = y.toString(); opt.textContent = y.toString();
           select.appendChild(opt);
         }
       }
-
       return select.value;
     }
 
     async function update() {
       const filterType = document.getElementById("filter-type").value;
       const selectedValue = document.getElementById("date-select").value;
-
       const allData = await fetchData();
       let filtered = [];
-
-      if (filterType === "day") {
-        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY-MM-DD
-      } else if (filterType === "month") {
-        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY-MM
-      } else if (filterType === "year") {
-        filtered = allData.filter(d => d.date.startsWith(selectedValue)); // YYYY
-      }
+      if (filterType === "day") filtered = allData.filter(d => d.date.startsWith(selectedValue));
+      else if (filterType === "month") filtered = allData.filter(d => d.date.startsWith(selectedValue));
+      else if (filterType === "year") filtered = allData.filter(d => d.date.startsWith(selectedValue));
 
       const stats = calculateDetailedStats(filtered);
       renderTable(stats);
+
+      const scrapWaitingStats = calculateScrapWaitingStats(filtered);
+      renderScrapWaitingTable(scrapWaitingStats);
     }
 
-    // ========== ваша таблица renderTable (не менял) ==========
     function renderTable(stats) {
       const container = document.getElementById('stats-container');
       container.innerHTML = '';
@@ -273,123 +280,80 @@
         Object.values(stats).flatMap(p => Object.keys(p).map(Number))
       )).sort((a, b) => b - a);
       let people = Object.keys(stats);
-      if (people.length === 0) {
-        container.innerHTML = '<p style="text-align:center; margin-top:20px;">Brak danych</p>';
-        return;
-      }
-      let percentPerMonthMode = false;
-      let totalModePercent = false;
-      const totalPerDiagonal = {};
-      diagonals.forEach(d => totalPerDiagonal[d] = 0);
+      if (people.length === 0) { container.innerHTML = '<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
+      const totalPerDiagonal = {}; diagonals.forEach(d => totalPerDiagonal[d] = 0);
       const personTotals = {};
       people.forEach(person => {
         let total = 0;
-        diagonals.forEach(d => {
-          if (stats[person][d]) {
-            total += stats[person][d].sum;
-            totalPerDiagonal[d] += stats[person][d].sum;
-          }
-        });
+        diagonals.forEach(d => { if (stats[person][d]) { total += stats[person][d].sum; totalPerDiagonal[d] += stats[person][d].sum; } });
         personTotals[person] = total;
       });
       people = people.sort((a, b) => (personTotals[b] || 0) - (personTotals[a] || 0));
       const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const thName = document.createElement('th');
-      thName.textContent = 'Name';
-      headerRow.appendChild(thName);
-      diagonals.forEach(d => {
-        const th = document.createElement('th');
-        th.textContent = d;
-        headerRow.appendChild(th);
-      });
-      const thDays = document.createElement('th');
-      thDays.textContent = 'Day';
-      headerRow.appendChild(thDays);
-      const thPercentPerMonth = document.createElement('th');
-      thPercentPerMonth.textContent = '%';
-      headerRow.appendChild(thPercentPerMonth);
-      const thTotal = document.createElement('th');
-      thTotal.textContent = 'Total';
-      thTotal.className = 'total-col';
-      headerRow.appendChild(thTotal);
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
+      const thead = document.createElement('thead'); const headerRow = document.createElement('tr');
+      const thName = document.createElement('th'); thName.textContent = 'Name'; headerRow.appendChild(thName);
+      diagonals.forEach(d => { const th = document.createElement('th'); th.textContent = d; headerRow.appendChild(th); });
+      ['Day','%','Total'].forEach(text => { const th = document.createElement('th'); th.textContent = text; if(text==='Total') th.className='total-col'; headerRow.appendChild(th); });
+      thead.appendChild(headerRow); table.appendChild(thead);
       const tbody = document.createElement('tbody');
-      const globalTotal = Object.values(personTotals).reduce((a, b) => a + b, 0);
+      const globalTotal = Object.values(personTotals).reduce((a,b)=>a+b,0);
       people.forEach(person => {
         const tr = document.createElement('tr');
-        const tdName = document.createElement('td');
-        tdName.textContent = person;
-        tr.appendChild(tdName);
-        diagonals.forEach(d => {
-          const td = document.createElement('td');
-          td.textContent = stats[person][d] ? stats[person][d].sum : '-';
-          tr.appendChild(td);
-        });
-        const daysSet = new Set();
-        diagonals.forEach(d => {
-          if (stats[person][d]) {
-            stats[person][d].days.forEach(day => daysSet.add(day));
-          }
-        });
-        const tdDays = document.createElement('td');
-        tdDays.textContent = daysSet.size;
-        tr.appendChild(tdDays);
-        const tdPercentPerMonth = document.createElement('td');
-        const totalForPerson = personTotals[person];
-        if (daysSet.size > 0) {
-          tdPercentPerMonth.textContent = (totalForPerson / daysSet.size).toFixed(1);
-        } else {
-          tdPercentPerMonth.textContent = '0';
-        }
-        tr.appendChild(tdPercentPerMonth);
-        const tdTotal = document.createElement('td');
-        tdTotal.textContent = totalForPerson;
-        tdTotal.classList.add('total-col');
-        tr.appendChild(tdTotal);
+        const tdName = document.createElement('td'); tdName.textContent=person; tr.appendChild(tdName);
+        diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=stats[person][d]?stats[person][d].sum:'-'; tr.appendChild(td); });
+        const daysSet=new Set(); diagonals.forEach(d=>{ if(stats[person][d]) stats[person][d].days.forEach(day=>daysSet.add(day)); });
+        const tdDays=document.createElement('td'); tdDays.textContent=daysSet.size; tr.appendChild(tdDays);
+        const tdPercent=document.createElement('td'); tdPercent.textContent=daysSet.size>0?(personTotals[person]/daysSet.size).toFixed(1):'0'; tr.appendChild(tdPercent);
+        const tdTotal=document.createElement('td'); tdTotal.textContent=personTotals[person]; tdTotal.classList.add('total-col'); tr.appendChild(tdTotal);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      const tfoot = document.createElement('tfoot');
-      const footerRow = document.createElement('tr');
-      const tdLabel = document.createElement('td');
-      tdLabel.textContent = 'Total Repaired';
-      footerRow.appendChild(tdLabel);
-      diagonals.forEach(d => {
-        const td = document.createElement('td');
-        td.textContent = totalPerDiagonal[d];
-        td.classList.add('total-col');
-        footerRow.appendChild(td);
-      });
-      footerRow.appendChild(document.createElement('td'));
-      footerRow.appendChild(document.createElement('td'));
-      const tdGlobalTotal = document.createElement('td');
-      tdGlobalTotal.textContent = globalTotal;
-      tdGlobalTotal.classList.add('total-col');
-      footerRow.appendChild(tdGlobalTotal);
-      tfoot.appendChild(footerRow);
-      table.appendChild(tfoot);
+      const tfoot=document.createElement('tfoot'); const footerRow=document.createElement('tr');
+      const tdLabel=document.createElement('td'); tdLabel.textContent='Total Repaired'; footerRow.appendChild(tdLabel);
+      diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=totalPerDiagonal[d]; td.classList.add('total-col'); footerRow.appendChild(td); });
+      footerRow.appendChild(document.createElement('td')); footerRow.appendChild(document.createElement('td'));
+      const tdGlobalTotal=document.createElement('td'); tdGlobalTotal.textContent=globalTotal; tdGlobalTotal.classList.add('total-col'); footerRow.appendChild(tdGlobalTotal);
+      tfoot.appendChild(footerRow); table.appendChild(tfoot);
       container.appendChild(table);
     }
 
-    // инициализация
-    (async () => {
-      const filterTypeSelect = document.getElementById("filter-type");
+    function renderScrapWaitingTable(stats) {
+      const container = document.getElementById('scrap-waiting-container');
+      container.innerHTML='';
+      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p).map(Number)))).sort((a,b)=>b-a);
+      const people = Object.keys(stats);
+      if(people.length===0){ container.innerHTML='<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
+      const table=document.createElement('table');
+      const thead=document.createElement('thead'); const headerRow=document.createElement('tr');
+      const thName=document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
+      diagonals.forEach(d=>{ const th=document.createElement('th'); th.textContent=d; headerRow.appendChild(th); });
+      table.appendChild(thead); thead.appendChild(headerRow);
+      const tbody=document.createElement('tbody');
+      people.forEach(person=>{
+        const tr=document.createElement('tr');
+        const tdName=document.createElement('td'); tdName.textContent=person; tr.appendChild(tdName);
+        diagonals.forEach(d=>{
+          const td=document.createElement('td');
+          if(stats[person][d]){
+            td.innerHTML=`<div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div>`;
+          } else td.textContent='-';
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody); container.appendChild(table);
+    }
+
+    (async()=>{
+      const filterTypeSelect=document.getElementById("filter-type");
       fillDateSelect(filterTypeSelect.value);
       await update();
-
-      filterTypeSelect.addEventListener("change", async () => {
+      filterTypeSelect.addEventListener("change",async()=>{
         fillDateSelect(filterTypeSelect.value);
         await update();
       });
-
-      document.getElementById("date-select").addEventListener("change", async () => {
-        await update();
-      });
-
-      setInterval(update, 300000); // каждые 5 минут
+      document.getElementById("date-select").addEventListener("change",async()=>{ await update(); });
+      setInterval(update,300000);
     })();
   </script>
 </body>
