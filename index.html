@@ -88,12 +88,12 @@
   /* --- блоки внутри ячейки --- */
   .cell-status {
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* горизонтальное расположение блоков */
     height: 100%;
     width: 100%;
   }
   .cell-status span {
-    flex: 1;
+    flex: 1;               /* равная ширина для каждого блока */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -101,15 +101,9 @@
     font-weight: bold;
     font-size: 12px;
   }
-  .cell-ok {
-    background-color: #ccc;  /* серый */
-  }
-  .cell-waiting {
-    background-color: #ffeb3b; /* жёлтый */
-  }
-  .cell-scrap {
-    background-color: #ff4444; /* красный */
-  }
+  .cell-ok { background-color: #ccc; }
+  .cell-waiting { background-color: #ffeb3b; }
+  .cell-scrap { background-color: #ff4444; }
 </style>
 </head>
 <body>
@@ -223,7 +217,8 @@ function renderTable(stats){
   const people = Object.keys(stats);
   if(!people.length){ container.innerHTML='<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
   const table = document.createElement('table');
-  const thead = document.createElement('thead'); const headerRow = document.createElement('tr');
+  const thead = document.createElement('thead'); 
+  const headerRow = document.createElement('tr');
   const thName = document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
   diagonals.forEach(d=>{const th=document.createElement('th');th.textContent=d;headerRow.appendChild(th);});
   const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.className='total-col'; headerRow.appendChild(thTotal);
