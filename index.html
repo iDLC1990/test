@@ -31,6 +31,7 @@
       <label class="date-info">Tryb:</label>
       <select id="filter-type">
         <option value="day">Dzień</option>
+        <option value="week">Tydzień</option>
         <option value="month" selected>Miesiąc</option>
         <option value="year">Rok</option>
       </select>
@@ -142,25 +143,57 @@
     }
 
     function fillDateSelect(filterType){
-      const select = document.getElementById('date-select'); select.innerHTML='';
+      const select = document.getElementById('date-select'); 
+      select.innerHTML='';
       const now = new Date();
+
       if(filterType==='day'){
         for(let i=0;i<30;i++){
           const d = new Date(now.getFullYear(), now.getMonth(), now.getDate()-i);
           const val = d.toISOString().split('T')[0];
-          const opt = document.createElement('option'); opt.value=val; opt.textContent=val; select.appendChild(opt);
+          const opt = document.createElement('option'); 
+          opt.value=val; opt.textContent=val; 
+          select.appendChild(opt);
         }
-      }else if(filterType==='month'){
+      } 
+      else if(filterType==='week'){
+        // последние 12 недель
+        for(let i=0;i<12;i++){
+          const today = new Date(now);
+          const dayOfWeek = today.getDay(); // 0=вс,1=пн,...6=сб
+          const mondayOffset = (dayOfWeek+6)%7; // сдвиг до понедельника
+          const monday = new Date(today);
+          monday.setDate(today.getDate() - mondayOffset - i*7);
+          const sunday = new Date(monday);
+          sunday.setDate(monday.getDate()+6);
+          const startStr = monday.toISOString().split('T')[0];
+          const endStr = sunday.toISOString().split('T')[0];
+          const val = `${startStr}_${endStr}`;
+          const opt=document.createElement('option'); 
+          opt.value=val; 
+          opt.textContent=`${startStr} → ${endStr}`;
+          select.appendChild(opt);
+        }
+      }
+      else if(filterType==='month'){
         for(let i=0;i<12;i++){
           const d = new Date(now.getFullYear(), now.getMonth()-i,1);
-          const y=d.getFullYear(); const m=(d.getMonth()+1).toString().padStart(2,'0');
+          const y=d.getFullYear(); 
+          const m=(d.getMonth()+1).toString().padStart(2,'0');
           const val = `${y}-${m}`;
-          const opt=document.createElement('option'); opt.value=val; opt.textContent=val; select.appendChild(opt);
+          const opt=document.createElement('option'); 
+          opt.value=val; 
+          opt.textContent=val; 
+          select.appendChild(opt);
         }
-      }else if(filterType==='year'){
+      }
+      else if(filterType==='year'){
         for(let i=0;i<5;i++){
           const y=now.getFullYear()-i;
-          const opt=document.createElement('option'); opt.value=y.toString(); opt.textContent=y.toString(); select.appendChild(opt);
+          const opt=document.createElement('option'); 
+          opt.value=y.toString(); 
+          opt.textContent=y.toString(); 
+          select.appendChild(opt);
         }
       }
       return select.value;
@@ -171,9 +204,25 @@
       const selectedValue = document.getElementById('date-select').value;
       const allData = await fetchData();
       let filtered = [];
-      if(filterType==='day') filtered=allData.filter(d=>d.date.startsWith(selectedValue));
-      else if(filterType==='month') filtered=allData.filter(d=>d.date.startsWith(selectedValue));
-      else if(filterType==='year') filtered=allData.filter(d=>d.date.startsWith(selectedValue));
+
+      if(filterType==='day'){
+        filtered=allData.filter(d=>d.date.startsWith(selectedValue));
+      }
+      else if(filterType==='week'){
+        const [startStr,endStr]=selectedValue.split('_');
+        const startDate=new Date(startStr);
+        const endDate=new Date(endStr);
+        filtered=allData.filter(d=>{
+          const cur=new Date(d.date);
+          return cur>=startDate && cur<=endDate;
+        });
+      }
+      else if(filterType==='month'){
+        filtered=allData.filter(d=>d.date.startsWith(selectedValue));
+      }
+      else if(filterType==='year'){
+        filtered=allData.filter(d=>d.date.startsWith(selectedValue));
+      }
 
       const stats = calculateDetailedStats(filtered);
       renderTable(stats);
