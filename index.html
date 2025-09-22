@@ -11,6 +11,7 @@
     .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .date-info { color: #005050; font-size: 18px; }
     select, input[type="date"] { padding: 6px 10px; font-size: 16px; border-radius: 5px; border: none; }
+    #range-container { display: none; gap: 10px; }
     #stats-container, #scrap-waiting-container { width: 90%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: #222; color: #fff; }
     th, td { border: 1px solid #555; padding: 8px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
@@ -22,7 +23,6 @@
     .scrap { color: #ff5555; }
     .waiting { color: #55ff55; }
     details summary { cursor: pointer; font-size: 18px; color: #005050; margin-bottom: 10px; }
-    #range-container { display: none; gap: 10px; }
   </style>
 </head>
 <body>
@@ -54,8 +54,98 @@
   </details>
 
   <script>
-    // ---- ТВОЙ КОД ЗДЕСЬ (fetchData, getDiagonals и т.д. остаются БЕЗ ИЗМЕНЕНИЙ) ----
-    // Я показываю только изменения для диапазона дат
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+    const validStatuses = ['OK', 'NDF'];
+
+    const diagonalMapPrefix = { 'WH8':55,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
+    const diagonalMap = {
+      '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
+      '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
+      '438':43,'435':43,'430':43,'428':43,'425':43,'420':43,
+      '418':43,'415':43,'398':43,'395':43,'390':43,
+      '348':32,'345':32,'340':32,'328':32,'325':32,'320':32,
+      '318':32,'315':32,'278':27,'275':27,'270':27,
+      '248':24,'245':24,'240':24,'238':24,'235':24,'230':24
+    };
+
+    function getDiagonals(serial){
+      if(!serial || serial.length<6) return [];
+      const upper = serial.toUpperCase();
+      const result = new Set();
+      const match = upper.match(/^[A-Z]{3}(\d{3})/);
+      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
+      const prefix = upper.slice(0,3);
+      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
+      return [...result];
+    }
+
+    async function getData(sheetName){
+      try{
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+        const data = await response.json();
+        return data.values || [];
+      }catch(err){
+        console.error('Ошибка получения данных:', err);
+        return [];
+      }
+    }
+
+    async function fetchData(){
+      const sheetNames = ['FI Station KOVALCHYK Y.','FI Station 2 ULANOVYCH.R'];
+      let combined = [];
+      for(const name of sheetNames){
+        const sheetData = await getData(name);
+        if(sheetData.length<2) continue;
+        const rows = sheetData.slice(1);
+        const mapped = rows.map(row=>({
+          date: row[0]||'',
+          serial: row[2]||'',
+          status: (row[4]||'').toUpperCase(),
+          person: row[5]||''
+        }));
+        combined = combined.concat(mapped);
+      }
+      return combined;
+    }
+
+    function calculateDetailedStats(data){
+      const stats = {};
+      data.forEach(({date, serial, status, person})=>{
+        if(!validStatuses.includes(status)) return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+        if(!stats[person]) stats[person]={};
+        diagonals.forEach(diagonal=>{
+          if(!stats[person][diagonal]) stats[person][diagonal]={ sum:0, days:new Set() };
+          stats[person][diagonal].sum++;
+          const day = date.split(' ')[0];
+          if(day) stats[person][diagonal].days.add(day);
+        });
+      });
+      return stats;
+    }
+
+    function calculateScrapWaitingStats(data){
+      const stats = {};
+      data.forEach(({serial, status, person})=>{
+        if(!person||!serial||!status) return;
+        const upperStatus = status.toUpperCase();
+        let type = null;
+        if(upperStatus.includes('SCRAP')) type='scrap';
+        else if(upperStatus.includes('WAITING')) type='waiting';
+        else return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+        if(!stats[person]) stats[person]={};
+        diagonals.forEach(diagonal=>{
+          if(!stats[person][diagonal]) stats[person][diagonal]={scrap:0, waiting:0};
+          stats[person][diagonal][type]++;
+        });
+      });
+      return stats;
+    }
 
     function fillDateSelect(filterType){
       const select = document.getElementById('date-select'); 
@@ -177,10 +267,7 @@
       const filterTypeSelect=document.getElementById("filter-type");
       fillDateSelect(filterTypeSelect.value);
       await update();
-      filterTypeSelect.addEventListener("change", async()=>{
-        fillDateSelect(filterTypeSelect.value);
-        await update();
-      });
+      filterTypeSelect.addEventListener("change", async()=>{ fillDateSelect(filterTypeSelect.value); await update(); });
       document.getElementById("date-select").addEventListener("change", async()=>{ await update(); });
       document.getElementById("date-from").addEventListener("change", async()=>{ await update(); });
       document.getElementById("date-to").addEventListener("change", async()=>{ await update(); });
