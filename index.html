@@ -35,12 +35,10 @@
         <option value="week">Tydzień</option>
         <option value="month">Miesiąc</option>
         <option value="year">Rok</option>
-        <option value="range">Zakres</option> <!-- 🔹 новый режим -->
+        <option value="range">Zakres</option>
       </select>
       <label class="date-info">Wybierz:</label>
       <select id="date-select"></select>
-
-      <!-- 🔹 новые поля календаря -->
       <span id="date-range-controls" style="display:none;">
         <label class="date-info">Od:</label>
         <input type="date" id="date-from">
@@ -53,7 +51,6 @@
 
   <div id="stats-container"></div>
 
-  <!-- Свертываемая таблица Scrap/Waiting -->
   <details id="scrap-waiting-table">
     <summary>Scrap / Waiting Stats</summary>
     <div id="scrap-waiting-container"></div>
@@ -251,20 +248,18 @@
         const selectedValue = document.getElementById('date-select').value;
         filtered=allData.filter(d=>d.date.startsWith(selectedValue));
       }
-      else if(filterType==='range'){ // 🔹 новый режим
+      else if(filterType==='range'){
         const from = new Date(document.getElementById('date-from').value);
         const to = new Date(document.getElementById('date-to').value);
+        if(from > to){ const tmp = from; from = to; to = tmp; } // swap if from > to
         filtered = allData.filter(d=>{
           const cur = new Date(d.date);
           return cur >= from && cur <= to;
         });
       }
 
-      const stats = calculateDetailedStats(filtered);
-      renderTable(stats);
-
-      const scrapWaitingStats = calculateScrapWaitingStats(filtered);
-      renderScrapWaitingTable(scrapWaitingStats);
+      renderTable(calculateDetailedStats(filtered));
+      renderScrapWaitingTable(calculateScrapWaitingStats(filtered));
     }
 
     function renderTable(stats){
