@@ -10,7 +10,7 @@
     .header h1 { margin: 0; color: #005050; font-size: 24px; }
     .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
     .date-info { color: #005050; font-size: 18px; }
-    select, input[type="date"] { padding: 6px 10px; font-size: 16px; border-radius: 5px; border: none; }
+    input[type="date"] { padding: 6px 10px; font-size: 16px; border-radius: 5px; border: none; }
     #stats-container, #scrap-waiting-container { width: 90%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: #222; color: #fff; }
     th, td { border: 1px solid #555; padding: 8px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
@@ -28,19 +28,11 @@
   <div class="header">
     <h1>LCDR LIVE DATA 2025</h1>
     <div class="controls">
-      <label class="date-info">Tryb:</label>
-      <select id="filter-type">
-        <option value="day">Dzień</option>
-        <option value="month" selected>Miesiąc</option>
-        <option value="year">Rok</option>
-      </select>
-
-      <!-- Диапазон дат -->
       <label class="date-info">Od:</label>
-      <input type="date" id="date-from" />
+      <input type="date" id="date-from"/>
       <label class="date-info">Do:</label>
-      <input type="date" id="date-to" />
-
+      <input type="date" id="date-to"/>
+      <button id="update-btn" style="padding:6px 12px; border:none; border-radius:5px; background-color:#005050; color:#fff; cursor:pointer;">Aktualizuj</button>
     </div>
   </div>
 
@@ -146,17 +138,14 @@
     }
 
     async function update(){
-      const allData = await fetchData();
-
       const dateFrom = document.getElementById('date-from').value;
       const dateTo = document.getElementById('date-to').value;
+      if(!dateFrom || !dateTo) return;
 
-      const filtered = allData.filter(d => {
-        if(!d.date) return false;
-        const dateValue = d.date.split(' ')[0];
-        if(dateFrom && dateValue < dateFrom) return false;
-        if(dateTo && dateValue > dateTo) return false;
-        return true;
+      const allData = await fetchData();
+      const filtered = allData.filter(d=>{
+        const dDate = d.date.split(' ')[0];
+        return dDate >= dateFrom && dDate <= dateTo;
       });
 
       const stats = calculateDetailedStats(filtered);
@@ -167,10 +156,12 @@
     }
 
     function renderTable(stats){
-      const container=document.getElementById('stats-container'); container.innerHTML='';
+      const container=document.getElementById('stats-container'); 
+      container.innerHTML='';
       const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p).map(Number)))).sort((a,b)=>b-a);
-      const people=Object.keys(stats);
+      let people=Object.keys(stats);
       if(people.length===0){ container.innerHTML='<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
+
       const totalPerDiagonal={}; diagonals.forEach(d=>totalPerDiagonal[d]=0);
       const personTotals={};
       people.forEach(person=>{
@@ -178,32 +169,34 @@
         diagonals.forEach(d=>{ if(stats[person][d]){ total+=stats[person][d].sum; totalPerDiagonal[d]+=stats[person][d].sum; }});
         personTotals[person]=total;
       });
-      const sortedPeople = people.sort((a,b)=>(personTotals[b]||0)-(personTotals[a]||0));
+      people=people.sort((a,b)=>(personTotals[b]||0)-(personTotals[a]||0));
+
       const table=document.createElement('table');
-      const thead=document.createElement('thead'); const headerRow=document.createElement('tr');
+      const thead=document.createElement('thead'); 
+      const headerRow=document.createElement('tr');
       const thName=document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
       diagonals.forEach(d=>{ const th=document.createElement('th'); th.textContent=d; headerRow.appendChild(th); });
-      ['Day','%','Total'].forEach(text=>{ const th=document.createElement('th'); th.textContent=text; if(text==='Total') th.className='total-col'; headerRow.appendChild(th); });
+      const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.className='total-col'; headerRow.appendChild(thTotal);
       thead.appendChild(headerRow); table.appendChild(thead);
+
       const tbody=document.createElement('tbody');
       const globalTotal=Object.values(personTotals).reduce((a,b)=>a+b,0);
-      sortedPeople.forEach(person=>{
+      people.forEach(person=>{
         const tr=document.createElement('tr');
         const tdName=document.createElement('td'); tdName.textContent=person; tr.appendChild(tdName);
         diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=stats[person][d]?stats[person][d].sum:'-'; tr.appendChild(td); });
-        const daysSet=new Set(); diagonals.forEach(d=>{ if(stats[person][d]) stats[person][d].days.forEach(day=>daysSet.add(day)); });
-        const tdDays=document.createElement('td'); tdDays.textContent=daysSet.size; tr.appendChild(tdDays);
-        const tdPercent=document.createElement('td'); tdPercent.textContent=daysSet.size>0?(personTotals[person]/daysSet.size).toFixed(1):'0'; tr.appendChild(tdPercent);
         const tdTotal=document.createElement('td'); tdTotal.textContent=personTotals[person]; tdTotal.classList.add('total-col'); tr.appendChild(tdTotal);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
-      const tfoot=document.createElement('tfoot'); const footerRow=document.createElement('tr');
+
+      const tfoot=document.createElement('tfoot'); 
+      const footerRow=document.createElement('tr');
       const tdLabel=document.createElement('td'); tdLabel.textContent='Total Repaired'; footerRow.appendChild(tdLabel);
       diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=totalPerDiagonal[d]; td.classList.add('total-col'); footerRow.appendChild(td); });
-      footerRow.appendChild(document.createElement('td')); footerRow.appendChild(document.createElement('td'));
       const tdGlobalTotal=document.createElement('td'); tdGlobalTotal.textContent=globalTotal; tdGlobalTotal.classList.add('total-col'); footerRow.appendChild(tdGlobalTotal);
       tfoot.appendChild(footerRow); table.appendChild(tfoot);
+
       container.appendChild(table);
     }
 
@@ -245,17 +238,7 @@
       container.appendChild(table);
     }
 
-    (async()=>{
-      const now = new Date();
-      document.getElementById('date-from').value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      document.getElementById('date-to').value = now.toISOString().split('T')[0];
-
-      await update();
-
-      document.getElementById("date-from").addEventListener("change", async()=>{ await update(); });
-      document.getElementById("date-to").addEventListener("change", async()=>{ await update(); });
-      setInterval(update, 300000);
-    })();
+    document.getElementById('update-btn').addEventListener('click', update);
   </script>
 </body>
 </html>
