@@ -34,10 +34,20 @@
         <option value="month">Miesiąc</option>
         <option value="year">Rok</option>
       </select>
-      <label class="date-info">Od:</label>
-      <input type="date" id="date-from" />
-      <label class="date-info">Do:</label>
-      <input type="date" id="date-to" />
+
+      <!-- Контейнер для календарей -->
+      <div id="day-picker-container" style="display:flex; align-items:center; gap:10px;">
+        <label class="date-info">Od:</label>
+        <input type="date" id="date-from" />
+        <label class="date-info">Do:</label>
+        <input type="date" id="date-to" />
+      </div>
+
+      <!-- Контейнер для месяца/года -->
+      <div id="month-year-container" style="display:none; align-items:center; gap:10px;">
+        <label class="date-info">Wybierz:</label>
+        <select id="month-year-select"></select>
+      </div>
     </div>
   </div>
 
@@ -142,18 +152,44 @@
       return stats;
     }
 
-    async function update(){
-      const dateFrom = document.getElementById('date-from').value;
-      const dateTo = document.getElementById('date-to').value;
+    function fillMonthYearSelect(type){
+      const select = document.getElementById('month-year-select'); select.innerHTML='';
+      const now = new Date();
+      if(type==='month'){
+        for(let i=0;i<12;i++){
+          const d = new Date(now.getFullYear(), now.getMonth()-i,1);
+          const y=d.getFullYear(); const m=(d.getMonth()+1).toString().padStart(2,'0');
+          const val = `${y}-${m}`;
+          const opt=document.createElement('option'); opt.value=val; opt.textContent=val; select.appendChild(opt);
+        }
+      }else if(type==='year'){
+        for(let i=0;i<5;i++){
+          const y=now.getFullYear()-i;
+          const opt=document.createElement('option'); opt.value=y.toString(); opt.textContent=y.toString(); select.appendChild(opt);
+        }
+      }
+      return select.value;
+    }
 
+    async function update(){
+      const filterType = document.getElementById('filter-type').value;
       const allData = await fetchData();
-      const filtered = allData.filter(d => {
-        if(!d.date) return false;
-        const date = d.date.split(' ')[0];
-        if(dateFrom && date < dateFrom) return false;
-        if(dateTo && date > dateTo) return false;
-        return true;
-      });
+      let filtered = [];
+
+      if(filterType==='day'){
+        const dateFrom = document.getElementById('date-from').value;
+        const dateTo = document.getElementById('date-to').value;
+        filtered = allData.filter(d => {
+          if(!d.date) return false;
+          const date = d.date.split(' ')[0];
+          if(dateFrom && date < dateFrom) return false;
+          if(dateTo && date > dateTo) return false;
+          return true;
+        });
+      } else {
+        const selected = document.getElementById('month-year-select').value;
+        filtered = allData.filter(d => d.date.startsWith(selected));
+      }
 
       const stats = calculateDetailedStats(filtered);
       renderTable(stats);
@@ -162,86 +198,21 @@
       renderScrapWaitingTable(scrapWaitingStats);
     }
 
-    function renderTable(stats){
-      const container=document.getElementById('stats-container'); container.innerHTML='';
-      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p).map(Number)))).sort((a,b)=>b-a);
-      let people=Object.keys(stats);
-      if(people.length===0){ container.innerHTML='<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
-      const totalPerDiagonal={}; diagonals.forEach(d=>totalPerDiagonal[d]=0);
-      const personTotals={};
-      people.forEach(person=>{
-        let total=0;
-        diagonals.forEach(d=>{ if(stats[person][d]){ total+=stats[person][d].sum; totalPerDiagonal[d]+=stats[person][d].sum; }});
-        personTotals[person]=total;
-      });
-      people=people.sort((a,b)=>(personTotals[b]||0)-(personTotals[a]||0));
-      const table=document.createElement('table');
-      const thead=document.createElement('thead'); const headerRow=document.createElement('tr');
-      const thName=document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
-      diagonals.forEach(d=>{ const th=document.createElement('th'); th.textContent=d; headerRow.appendChild(th); });
-      ['Day','%','Total'].forEach(text=>{ const th=document.createElement('th'); th.textContent=text; if(text==='Total') th.className='total-col'; headerRow.appendChild(th); });
-      thead.appendChild(headerRow); table.appendChild(thead);
-      const tbody=document.createElement('tbody');
-      const globalTotal=Object.values(personTotals).reduce((a,b)=>a+b,0);
-      people.forEach(person=>{
-        const tr=document.createElement('tr');
-        const tdName=document.createElement('td'); tdName.textContent=person; tr.appendChild(tdName);
-        diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=stats[person][d]?stats[person][d].sum:'-'; tr.appendChild(td); });
-        const daysSet=new Set(); diagonals.forEach(d=>{ if(stats[person][d]) stats[person][d].days.forEach(day=>daysSet.add(day)); });
-        const tdDays=document.createElement('td'); tdDays.textContent=daysSet.size; tr.appendChild(tdDays);
-        const tdPercent=document.createElement('td'); tdPercent.textContent=daysSet.size>0?(personTotals[person]/daysSet.size).toFixed(1):'0'; tr.appendChild(tdPercent);
-        const tdTotal=document.createElement('td'); tdTotal.textContent=personTotals[person]; tdTotal.classList.add('total-col'); tr.appendChild(tdTotal);
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      const tfoot=document.createElement('tfoot'); const footerRow=document.createElement('tr');
-      const tdLabel=document.createElement('td'); tdLabel.textContent='Total Repaired'; footerRow.appendChild(tdLabel);
-      diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=totalPerDiagonal[d]; td.classList.add('total-col'); footerRow.appendChild(td); });
-      footerRow.appendChild(document.createElement('td')); footerRow.appendChild(document.createElement('td'));
-      const tdGlobalTotal=document.createElement('td'); tdGlobalTotal.textContent=globalTotal; tdGlobalTotal.classList.add('total-col'); footerRow.appendChild(tdGlobalTotal);
-      tfoot.appendChild(footerRow); table.appendChild(tfoot);
-      container.appendChild(table);
+    function toggleControls(){
+      const filterType = document.getElementById('filter-type').value;
+      const dayPicker = document.getElementById('day-picker-container');
+      const monthYear = document.getElementById('month-year-container');
+      if(filterType==='day'){
+        dayPicker.style.display='flex';
+        monthYear.style.display='none';
+      }else{
+        dayPicker.style.display='none';
+        monthYear.style.display='flex';
+        fillMonthYearSelect(filterType);
+      }
     }
 
-    function renderScrapWaitingTable(stats){
-      const container = document.getElementById('scrap-waiting-container');
-      container.innerHTML = '';
-      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
-      const people = Object.keys(stats);
-      if(people.length === 0){ container.innerHTML = '<p style="text-align:center; margin-top:20px;">Brak danych</p>'; return; }
-
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const thName = document.createElement('th'); thName.textContent = 'Name'; headerRow.appendChild(thName);
-      diagonals.forEach(d => { const th = document.createElement('th'); th.textContent = d; headerRow.appendChild(th); });
-      const thScrapTotal = document.createElement('th'); thScrapTotal.textContent = 'Scrap Total'; thScrapTotal.className='total-col'; headerRow.appendChild(thScrapTotal);
-      const thWaitingTotal = document.createElement('th'); thWaitingTotal.textContent = 'Waiting Total'; thWaitingTotal.className='total-col'; headerRow.appendChild(thWaitingTotal);
-      thead.appendChild(headerRow); table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      people.forEach(person => {
-        const tr = document.createElement('tr');
-        const tdName = document.createElement('td'); tdName.textContent = person; tr.appendChild(tdName);
-        let scrapSum = 0; let waitingSum = 0;
-        diagonals.forEach(d=>{
-          const td = document.createElement('td');
-          if(stats[person][d]){
-            td.innerHTML = `<div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div>`;
-            scrapSum += stats[person][d].scrap;
-            waitingSum += stats[person][d].waiting;
-          } else td.textContent = '-';
-          tr.appendChild(td);
-        });
-        const tdScrapTotal = document.createElement('td'); tdScrapTotal.textContent = scrapSum; tdScrapTotal.className='total-col'; tr.appendChild(tdScrapTotal);
-        const tdWaitingTotal = document.createElement('td'); tdWaitingTotal.textContent = waitingSum; tdWaitingTotal.className='total-col'; tr.appendChild(tdWaitingTotal);
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
-
-    // Инициализация календарей с текущими датами
+    // Инициализация календарей
     (function initDatePickers() {
       const now = new Date();
       const today = now.toISOString().split('T')[0];
@@ -253,10 +224,20 @@
       document.getElementById('date-to').addEventListener('change', update);
     })();
 
+    document.getElementById('filter-type').addEventListener('change', async()=>{
+      toggleControls();
+      await update();
+    });
+    document.getElementById('month-year-select').addEventListener('change', update);
+
     (async()=>{
+      toggleControls();
       await update();
       setInterval(update, 300000);
     })();
+
+    // --- renderTable и renderScrapWaitingTable оставляем как в предыдущем коде ---
+    // Скопируй сюда функции renderTable(stats) и renderScrapWaitingTable(stats) из предыдущего полного кода.
   </script>
 </body>
 </html>
