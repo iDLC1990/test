@@ -5,14 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LCDR LIVE DATA 2025</title>
   <style>
-    body { background-color: #000; color: #fff; font-family: Arial, sans-serif; }
-    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: #111; flex-wrap: wrap; }
-    .header h1 { margin: 0; color: #005050; font-size: 24px; }
+    body {
+      background: url("https://raw.githubusercontent.com/iDLC1990/test/main/jonatan-pie-3l3RwQdHRHg-unsplash.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.7); flex-wrap: wrap; }
+    .header h1 { margin: 0; color: #00cccc; font-size: 24px; }
     .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .date-info { color: #005050; font-size: 18px; }
+    .date-info { color: #00cccc; font-size: 18px; }
     input[type="date"] { padding: 6px 10px; font-size: 16px; border-radius: 5px; border: none; }
     #stats-container, #scrap-waiting-container { width: 90%; margin: 24px auto; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; background-color: #222; color: #fff; }
+    table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.8); color: #fff; }
     th, td { border: 1px solid #555; padding: 8px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
     th { background-color: #005050; font-weight: bold; position: sticky; top: 0; z-index: 1; cursor: pointer; }
     td:first-child { background-color: #111; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; }
@@ -21,7 +26,7 @@
     .cell-split { display: flex; justify-content: space-between; }
     .scrap { color: #ff5555; }
     .waiting { color: #55ff55; }
-    details summary { cursor: pointer; font-size: 18px; color: #005050; margin-bottom: 10px; }
+    details summary { cursor: pointer; font-size: 18px; color: #00cccc; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -164,10 +169,23 @@
 
       const totalPerDiagonal={}; diagonals.forEach(d=>totalPerDiagonal[d]=0);
       const personTotals={};
+      const personDays={};
       people.forEach(person=>{
         let total=0;
-        diagonals.forEach(d=>{ if(stats[person][d]){ total+=stats[person][d].sum; totalPerDiagonal[d]+=stats[person][d].sum; }});
+        diagonals.forEach(d=>{
+          if(stats[person][d]){
+            total+=stats[person][d].sum;
+            totalPerDiagonal[d]+=stats[person][d].sum;
+          }
+        });
         personTotals[person]=total;
+        const allDays = new Set();
+        diagonals.forEach(d=>{
+          if(stats[person][d]){
+            stats[person][d].days.forEach(day => allDays.add(day));
+          }
+        });
+        personDays[person] = allDays.size;
       });
       people=people.sort((a,b)=>(personTotals[b]||0)-(personTotals[a]||0));
 
@@ -177,6 +195,7 @@
       const thName=document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
       diagonals.forEach(d=>{ const th=document.createElement('th'); th.textContent=d; headerRow.appendChild(th); });
       const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.className='total-col'; headerRow.appendChild(thTotal);
+      const thDays=document.createElement('th'); thDays.textContent='Dni obecności'; thDays.className='total-col'; headerRow.appendChild(thDays);
       thead.appendChild(headerRow); table.appendChild(thead);
 
       const tbody=document.createElement('tbody');
@@ -186,6 +205,7 @@
         const tdName=document.createElement('td'); tdName.textContent=person; tr.appendChild(tdName);
         diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=stats[person][d]?stats[person][d].sum:'-'; tr.appendChild(td); });
         const tdTotal=document.createElement('td'); tdTotal.textContent=personTotals[person]; tdTotal.classList.add('total-col'); tr.appendChild(tdTotal);
+        const tdDays=document.createElement('td'); tdDays.textContent=personDays[person]; tdDays.classList.add('total-col'); tr.appendChild(tdDays);
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -195,6 +215,7 @@
       const tdLabel=document.createElement('td'); tdLabel.textContent='Total Repaired'; footerRow.appendChild(tdLabel);
       diagonals.forEach(d=>{ const td=document.createElement('td'); td.textContent=totalPerDiagonal[d]; td.classList.add('total-col'); footerRow.appendChild(td); });
       const tdGlobalTotal=document.createElement('td'); tdGlobalTotal.textContent=globalTotal; tdGlobalTotal.classList.add('total-col'); footerRow.appendChild(tdGlobalTotal);
+      const tdEmpty=document.createElement('td'); tdEmpty.textContent=''; tdEmpty.classList.add('total-col'); footerRow.appendChild(tdEmpty);
       tfoot.appendChild(footerRow); table.appendChild(tfoot);
 
       container.appendChild(table);
