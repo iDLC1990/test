@@ -260,7 +260,16 @@
       container.appendChild(table);
     }
 
-    document.getElementById('update-btn').addEventListener('click', update);
+    // Обработчик кнопки
+document.getElementById('update-btn').addEventListener('click', update);
+
+// Автоматическая актуализация каждые 60 секунд
+const AUTO_UPDATE_INTERVAL = 60 * 1000; // 60 000 мс = 60 секунд
+setInterval(update, AUTO_UPDATE_INTERVAL);
+
+// Немедленный первый запуск при загрузке страницы
+update();
+
   </script>
 </body>
 </html>
