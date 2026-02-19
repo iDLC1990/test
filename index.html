@@ -22,18 +22,18 @@
     #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.8); color: #fff; }
     th, td { border: 1px solid #555; padding: 8px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
-    th { background-color: #00415096; font-weight: bold; position: sticky; top: 0; z-index: 1; cursor: pointer; }
+    th { background-color: #004150; font-weight: bold; position: sticky; top: 0; z-index: 1; cursor: pointer; }
     
     .person-row { cursor: pointer; transition: background 0.3s; }
     .person-row:hover { background-color: rgba(0, 204, 204, 0.2); }
-    td.name-cell { background-color: #00415096; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; }
+    td.name-cell { background-color: #004150; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; }
 
-    th.total-col, td.total-col { background-color: #00415096; font-weight: bold; }
+    th.total-col, td.total-col { background-color: #004150; font-weight: bold; }
     
     .detail-row td { background-color: rgba(0, 20, 20, 0.95); padding: 15px; text-align: left; }
     .detail-table { width: 100%; border: 1px solid #444; background: #111; }
     .detail-table th { font-size: 12px; background: #222; color: #00cccc; }
-    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border: 1px solid #333; }
+    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border: 1px solid #333; color: inherit; }
 
     .cell-split { display: flex; justify-content: space-between; }
     .scrap { color: #ff5555; }
@@ -125,7 +125,7 @@
           date: row[0]||'',
           serial: row[2]||'',
           status: (row[4]||'').toUpperCase(),
-          finalna: row[6]||'', // Столбец G (индекс 6)
+          finalna: row[6]||'',
           person: row[5]||'',
           statusH: row[7]||'',
           matrixStatus: row[9]||'',
@@ -201,7 +201,7 @@
         return sumB - sumA;
       });
 
-      if(people.length===0){ container.innerHTML='<p>Brak danych</p>'; return; }
+      if(people.length===0){ container.innerHTML='<p>Brak данных</p>'; return; }
 
       const table=document.createElement('table');
       const header = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}<th>Total</th><th>Dni</th></tr></thead>`;
@@ -242,34 +242,54 @@
       const detailRow = document.createElement('tr');
       detailRow.className = 'detail-row';
       
-      let detailHtml = `<td colspan="100%">
-        <table class="detail-table">
-          <thead>
-            <tr>
-              <th>Serial</th>
-              <th>Status</th>
-              <th>FINALNA</th>
-              <th> </th>
-              <th>NEW / NP</th>
-              <th>Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${details.map(d => `
+      let rowsHtml = details.map(d => {
+        let rowStyle = "";
+        let textStyle = "color: white;";
+        const s = d.status.toUpperCase();
+
+        if (s.includes('SCRAP')) {
+            rowStyle = "background-color: rgba(150, 0, 0, 0.8);"; // Темно-красный
+        } else if (s.includes('WAITING')) {
+            rowStyle = "background-color: rgba(180, 180, 0, 0.8);"; // Темно-желтый
+            textStyle = "color: black; font-weight: bold;";
+        } else if (s.includes('NDF')) {
+            rowStyle = "background-color: rgba(255, 105, 180, 0.6);"; // Розовый
+            textStyle = "color: black; font-weight: bold;";
+        } else if (s === 'OK') {
+            textStyle = "color: #55ff55; font-weight: bold;"; // Просто зеленый текст для OK
+        }
+
+        return `
+          <tr style="${rowStyle}">
+            <td style="${textStyle}">${d.serial}</td>
+            <td style="${textStyle}">${d.status}</td>
+            <td style="${textStyle} font-weight:bold;">${d.finalna}</td>
+            <td style="${textStyle}">${d.statusH}</td>
+            <td style="${textStyle}">${d.matrixStatus}</td>
+            <td style="${textStyle}">${d.description}</td>
+          </tr>
+        `;
+      }).join('');
+
+      detailRow.innerHTML = `
+        <td colspan="100%">
+          <table class="detail-table">
+            <thead>
               <tr>
-                <td>${d.serial}</td>
-                <td style="color:${d.status === 'OK' ? '#55ff55' : '#ff5555'}">${d.status}</td>
-                <td style="font-weight:bold;">${d.finalna}</td>
-                <td>${d.statusH}</td>
-                <td>${d.matrixStatus}</td>
-                <td>${d.description}</td>
+                <th>Serial</th>
+                <th>Status</th>
+                <th>FINALNA</th>
+                <th>H-Status</th>
+                <th>NEW / NP</th>
+                <th>Description</th>
               </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </td>`;
+            </thead>
+            <tbody>
+              ${rowsHtml}
+            </tbody>
+          </table>
+        </td>`;
       
-      detailRow.innerHTML = detailHtml;
       row.after(detailRow);
     }
 
