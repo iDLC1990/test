@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pl">
 <head>
@@ -14,20 +13,24 @@
     }
     .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.39); flex-wrap: wrap; }
     .header h1 { margin: 0; color: #00cccc; font-size: 24px; }
-    .controls { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .date-info { color: #00cccc; font-size: 18px; }
     input[type="date"] { padding: 6px 10px; font-size: 16px; border-radius: 5px; border: none; }
+    
+    /* Стиль таймера */
+    #auto-timer { color: #00ffea; font-size: 16px; font-weight: bold; min-width: 150px; }
+
     #stats-container, #scrap-waiting-container { width: 90%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.8); color: #fff; }
     th, td { border: 1px solid #555; padding: 8px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
     th { background-color: #00415096; font-weight: bold; position: sticky; top: 0; z-index: 1; cursor: pointer; }
-    td:first-child { background-color: ##00415096; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; }
+    td:first-child { background-color: #00415096; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; }
     th.total-col, td.total-col { background-color: #00415096; font-weight: bold; }
     tfoot td { background-color: #00505000; font-weight: bold; }
     .cell-split { display: flex; justify-content: space-between; }
     .scrap { color: #ff5555; }
     .waiting { color: #55ff55; }
-    details summary { cursor: pointer; font-size: 18px; color: #00cccc; margin-bottom: 10px; }
+    details summary { cursor: pointer; font-size: 18px; color: #00cccc; margin-bottom: 10px; padding: 10px; }
   </style>
 </head>
 <body>
@@ -39,6 +42,7 @@
       <label class="date-info">Do:</label>
       <input type="date" id="date-to"/>
       <button id="update-btn" style="padding:6px 12px; border:none; border-radius:5px; background-color:#005050; color:#fff; cursor:pointer;">Aktualizuj</button>
+      <div id="auto-timer">Auto refresh in: --:--</div>
     </div>
   </div>
 
@@ -54,6 +58,26 @@
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
+
+    // Логика таймера
+    let refreshInterval = 300; // 5 минут в секундах
+    let countdown = refreshInterval;
+    let countdownTimer;
+
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      countdown = refreshInterval;
+      countdownTimer = setInterval(() => {
+        countdown--;
+        const mins = Math.floor(countdown / 60);
+        const secs = String(countdown % 60).padStart(2, '0');
+        document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
+        
+        if (countdown <= 0) {
+          update(); // Автоматическое обновление
+        }
+      }, 1000);
+    }
 
     const diagonalMapPrefix = { 'WH8':55,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
     const diagonalMap = {
@@ -83,7 +107,7 @@
         const data = await response.json();
         return data.values || [];
       }catch(err){
-        console.error('Ошибка получения данных:', err);
+        console.error('Błąd pobierania:', err);
         return [];
       }
     }
@@ -146,7 +170,11 @@
     async function update(){
       const dateFrom = document.getElementById('date-from').value;
       const dateTo = document.getElementById('date-to').value;
-      if(!dateFrom || !dateTo) return;
+      if(!dateFrom || !dateTo) {
+        // Если даты не выбраны, просто перезапускаем таймер
+        startCountdown();
+        return;
+      }
 
       const allData = await fetchData();
       const filtered = allData.filter(d=>{
@@ -159,6 +187,9 @@
 
       const scrapWaitingStats = calculateScrapWaitingStats(filtered);
       renderScrapWaitingTable(scrapWaitingStats);
+
+      // Перезапуск таймера после успешного обновления
+      startCountdown();
     }
 
     function renderTable(stats){
@@ -196,7 +227,7 @@
       const thName=document.createElement('th'); thName.textContent='Name'; headerRow.appendChild(thName);
       diagonals.forEach(d=>{ const th=document.createElement('th'); th.textContent=d; headerRow.appendChild(th); });
       const thTotal=document.createElement('th'); thTotal.textContent='Total'; thTotal.className='total-col'; headerRow.appendChild(thTotal);
-      const thDays=document.createElement('th'); thDays.textContent='Dni obecności'; thDays.className='total-col'; headerRow.appendChild(thDays);
+      const thDays=document.createElement('th'); thDays.textContent='Dni'; thDays.className='total-col'; headerRow.appendChild(thDays);
       thead.appendChild(headerRow); table.appendChild(thead);
 
       const tbody=document.createElement('tbody');
@@ -260,16 +291,15 @@
       container.appendChild(table);
     }
 
-    // Обработчик кнопки
-document.getElementById('update-btn').addEventListener('click', update);
+    document.getElementById('update-btn').addEventListener('click', update);
 
-// Автоматическая актуализация каждые 60 секунд
-const AUTO_UPDATE_INTERVAL = 60 * 1000; // 60 000 мс = 60 секунд
-setInterval(update, AUTO_UPDATE_INTERVAL);
+    // Установка сегодняшней даты по умолчанию, чтобы данные сразу подгружались
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('date-from').value = today;
+    document.getElementById('date-to').value = today;
 
-// Немедленный первый запуск при загрузке страницы
-update();
-
+    // Первый запуск
+    update();
   </script>
 </body>
 </html>
