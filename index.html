@@ -125,6 +125,7 @@
           date: row[0]||'',
           serial: row[2]||'',
           status: (row[4]||'').toUpperCase(),
+          finalna: row[6]||'', // Столбец G (индекс 6)
           person: row[5]||'',
           statusH: row[7]||'',
           matrixStatus: row[9]||'',
@@ -231,7 +232,6 @@
       container.appendChild(table);
     }
 
-    // ИСПРАВЛЕННАЯ ФУНКЦИЯ: БЕЗ DATA И С ПРАВИЛЬНЫМИ ЗАГОЛОВКАМИ
     function toggleDetails(row, personName) {
       if(row.nextSibling && row.nextSibling.classList.contains('detail-row')){
         row.nextSibling.remove();
@@ -248,7 +248,8 @@
             <tr>
               <th>Serial</th>
               <th>Status</th>
-              <th>H-Status</th>
+              <th>FINALNA</th>
+              <th> </th>
               <th>NEW / NP</th>
               <th>Description</th>
             </tr>
@@ -258,6 +259,7 @@
               <tr>
                 <td>${d.serial}</td>
                 <td style="color:${d.status === 'OK' ? '#55ff55' : '#ff5555'}">${d.status}</td>
+                <td style="font-weight:bold;">${d.finalna}</td>
                 <td>${d.statusH}</td>
                 <td>${d.matrixStatus}</td>
                 <td>${d.description}</td>
