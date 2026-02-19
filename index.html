@@ -35,11 +35,12 @@
     .detail-table th { font-size: 12px; background: #1a1a1a; color: #00cccc; }
     .detail-table td { font-size: 13px; white-space: normal; text-align: left; border: 1px solid #333; }
 
-    /* Вспомогательные стили для статус-текста */
-    .st-ok { color: #55ff55; font-weight: bold; }
-    .st-ndf { color: #ff69b4; font-weight: bold; }
-    .st-scrap { color: #ff4444; font-weight: bold; }
-    .st-waiting { color: #ffff00; font-weight: bold; }
+    /* Стили для статусов */
+    .st-ndf { color: #ff69b4 !important; font-weight: bold; }
+    .st-scrap { color: #ff4444 !important; font-weight: bold; }
+    .st-waiting { color: #ffff00 !important; font-weight: bold; }
+    /* OK теперь просто белый, как обычный текст */
+    .st-ok { color: #fff; } 
 
     .cell-split { display: flex; justify-content: space-between; }
     .scrap { color: #ff5555; }
@@ -249,29 +250,26 @@
       detailRow.className = 'detail-row';
       
       let rowsHtml = details.map(d => {
-        let statusClass = "";
+        let statusClass = "st-ok";
         let rowBg = "transparent";
         const s = d.status.toUpperCase();
 
-        // Вместо заливки всей строки, используем классы для текста + легкий фон для ряда
         if (s.includes('SCRAP')) {
             statusClass = "st-scrap";
-            rowBg = "rgba(255, 0, 0, 0.1)"; 
+            rowBg = "rgba(255, 0, 0, 0.15)"; 
         } else if (s.includes('WAITING')) {
             statusClass = "st-waiting";
-            rowBg = "rgba(255, 255, 0, 0.05)";
+            rowBg = "rgba(255, 255, 0, 0.1)";
         } else if (s.includes('NDF')) {
             statusClass = "st-ndf";
-            rowBg = "rgba(255, 105, 180, 0.1)";
-        } else if (s === 'OK') {
-            statusClass = "st-ok";
+            rowBg = "rgba(255, 105, 180, 0.15)";
         }
 
         return `
           <tr style="background-color: ${rowBg};">
             <td class="${statusClass}">${d.serial}</td>
             <td class="${statusClass}">${d.status}</td>
-            <td class="${statusClass}">${d.finalna}</td>
+            <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
             <td class="${statusClass}">${d.statusH}</td>
             <td class="${statusClass}">${d.matrixStatus}</td>
             <td class="${statusClass}">${d.description}</td>
