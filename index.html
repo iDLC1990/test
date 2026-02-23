@@ -26,20 +26,18 @@
     
     .person-row { cursor: pointer; transition: background 0.3s; }
     .person-row:hover { background-color: rgba(0, 204, 204, 0.2); }
-    td.name-cell { background-color: #39393900; font-weight: Medium; text-align: left; position: sticky; left: 0; z-index: 1; }
+    td.name-cell { background-color: #393939; font-weight: 500; text-align: left; position: sticky; left: 0; z-index: 1; }
 
     th.total-col, td.total-col { background-color: #393939; font-weight: bold; }
     
-    .detail-row td { background-color: rgba(43, 43, 43, 0.73); padding: 5px; text-align: Center; }
+    .detail-row td { background-color: rgba(43, 43, 43, 0.73); padding: 5px; text-align: center; }
     .detail-table { width: 100%; border: 1px solid #444; background: #000; }
     .detail-table th { font-size: 12px; background: #1a1a1a; color: #00cccc; }
     .detail-table td { font-size: 13px; white-space: normal; text-align: left; border: 1px solid #000000; }
 
-    /* Стили для статусов */
     .st-ndf { color: #ff69b4 !important; font-weight: bold; }
     .st-scrap { color: #ff4444 !important; font-weight: bold; }
     .st-waiting { color: #ffff00 !important; font-weight: bold; }
-    /* OK теперь просто белый, как обычный текст */
     .st-ok { color: #fff; } 
 
     .cell-split { display: flex; justify-content: space-between; }
@@ -69,6 +67,7 @@
   </details>
 
   <script>
+    // Настройки
     const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
@@ -79,6 +78,7 @@
     let countdownTimer;
     let lastFilteredData = []; 
 
+    // Логика таймера
     function startCountdown() {
       clearInterval(countdownTimer);
       countdown = refreshInterval;
@@ -87,10 +87,13 @@
         const mins = Math.floor(countdown / 60);
         const secs = String(countdown % 60).padStart(2, '0');
         document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
-        if (countdown <= 0) update();
+        if (countdown <= 0) {
+            update();
+        }
       }, 1000);
     }
 
+    // Словари диагоналей
     const diagonalMapPrefix = { 'WH8':55,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
     const diagonalMap = {
       '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
@@ -113,12 +116,17 @@
       return [...result];
     }
 
+    // Получение данных с защитой от КЕША
     async function getData(sheetName){
       try{
-        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}`);
+        // Добавляем t=время, чтобы запрос всегда был уникальным
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}&t=${new Date().getTime()}`);
         const data = await response.json();
         return data.values || [];
-      }catch(err){ return []; }
+      }catch(err){ 
+        console.error("Fetch error:", err);
+        return []; 
+      }
     }
 
     async function fetchData(){
@@ -143,23 +151,41 @@
       return combined;
     }
 
+    // Основная функция обновления
     async function update(){
+      const btn = document.getElementById('update-btn');
+      const timerLabel = document.getElementById('auto-timer');
+      
+      btn.textContent = "Loading...";
+      timerLabel.textContent = "Updating data...";
+
       const dateFrom = document.getElementById('date-from').value;
       const dateTo = document.getElementById('date-to').value;
-      if(!dateFrom || !dateTo) { startCountdown(); return; }
+      
+      if(!dateFrom || !dateTo) { 
+        btn.textContent = "Aktualizuj";
+        startCountdown(); 
+        return; 
+      }
 
       const allData = await fetchData();
+      
+      // Фильтрация
       lastFilteredData = allData.filter(d=>{
         const dDate = d.date.split(' ')[0];
         return dDate >= dateFrom && dDate <= dateTo;
       });
 
+      // Перерисовка таблиц
       const stats = calculateDetailedStats(lastFilteredData);
       renderTable(stats);
 
       const scrapWaitingStats = calculateScrapWaitingStats(lastFilteredData);
       renderScrapWaitingTable(scrapWaitingStats);
 
+      // Возврат интерфейса в норму
+      btn.textContent = "Aktualizuj";
+      console.log("Data updated at: " + new Date().toLocaleTimeString());
       startCountdown();
     }
 
@@ -208,7 +234,7 @@
         return sumB - sumA;
       });
 
-      if(people.length===0){ container.innerHTML='<p>Brak danych</p>'; return; }
+      if(people.length===0){ container.innerHTML='<p style="text-align:center;">Brak danych dla wybranych dat</p>'; return; }
 
       const table=document.createElement('table');
       const header = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}<th>Total</th><th>Dni</th></tr></thead>`;
@@ -303,6 +329,10 @@
       const container = document.getElementById('scrap-waiting-container');
       container.innerHTML = '';
       const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
+      if(diagonals.length === 0) {
+          container.innerHTML = '<p style="text-align:center;">Brak danych Scrap/Waiting</p>';
+          return;
+      }
       const table = document.createElement('table');
       table.innerHTML = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}</tr></thead>`;
       const tbody = document.createElement('tbody');
@@ -321,10 +351,16 @@
       container.appendChild(table);
     }
 
+    // Инициализация
     document.getElementById('update-btn').addEventListener('click', update);
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('date-from').value = today;
-    document.getElementById('date-to').value = today;
+    
+    // Установка даты на сегодня
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    document.getElementById('date-from').value = todayStr;
+    document.getElementById('date-to').value = todayStr;
+
+    // Первый запуск
     update();
   </script>
 </body>
