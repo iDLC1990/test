@@ -31,6 +31,13 @@
 
     th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
     
+    /* Стили для разделенного Total */
+    .total-split { display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; font-size: 12px; }
+    .total-sum { font-size: 15px; border-bottom: 1px solid #555; width: 100%; padding-bottom: 2px; margin-bottom: 2px; }
+    .total-sub { display: flex; gap: 8px; justify-content: center; width: 100%; }
+    .t-ok { color: #00ffea; }
+    .t-ndf { color: #ff69b4; }
+
     .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
     .detail-table { width: 100%; border: 1px solid #444; }
     .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
@@ -84,7 +91,6 @@
     function startCountdown() {
       clearInterval(countdownTimer);
       countdown = refreshInterval;
-      
       countdownTimer = setInterval(() => {
         countdown--;
         const mins = Math.floor(countdown / 60);
@@ -155,7 +161,6 @@
     async function update(){
       const btn = document.getElementById('update-btn');
       const timerLabel = document.getElementById('auto-timer');
-      
       btn.style.backgroundColor = "#555";
       btn.textContent = "Updating...";
       timerLabel.textContent = "Fetching new data...";
@@ -171,7 +176,6 @@
       }
 
       const allData = await fetchData();
-      
       lastFilteredData = allData.filter(d=>{
         const dDate = d.date.split(' ')[0];
         return dDate >= dateFrom && dDate <= dateTo;
@@ -188,7 +192,6 @@
       startCountdown();
     }
 
-    // --- ОБНОВЛЕННАЯ ЛОГИКА ПОДСЧЕТА ---
     function calculateDetailedStats(data){
       const stats = {};
       data.forEach(({date, serial, status, person})=>{
@@ -197,18 +200,11 @@
         if(diagonals.length===0) return;
 
         if(!stats[person]) {
-            stats[person] = { 
-                diagonals: {}, 
-                okCount: 0, 
-                ndfCount: 0, 
-                days: new Set() 
-            };
+            stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
         }
 
         const day = date.split(' ')[0];
         if(day) stats[person].days.add(day);
-
-        // Считаем OK и NDF отдельно
         if(status === 'OK') stats[person].okCount++;
         if(status === 'NDF') stats[person].ndfCount++;
 
@@ -238,11 +234,9 @@
       return stats;
     }
 
-    // --- ОБНОВЛЕННАЯ ТАБЛИЦА ---
     function renderTable(stats){
       const container=document.getElementById('stats-container'); 
       container.innerHTML='';
-      
       const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
       
       let people=Object.keys(stats).sort((a,b)=>{
@@ -251,16 +245,13 @@
         return sumB - sumA;
       });
 
-      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych dla wybranych dat</p>'; return; }
+      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych</p>'; return; }
 
-      const table=document.createElement('table');
-      // Добавлены заголовки OK и NDF
+      const table = document.createElement('table');
       const header = `<thead><tr>
                         <th>Name</th>
                         ${diagonals.map(d=>`<th>${d}</th>`).join('')}
-                        <th class="total-col">Total</th>
-                        <th class="total-col" style="color:#00ffea">OK</th>
-                        <th class="total-col" style="color:#ff69b4">NDF</th>
+                        <th class="total-col">Total (OK / NDF)</th>
                         <th class="total-col">Dni</th>
                       </tr></thead>`;
       table.innerHTML = header;
@@ -276,9 +267,15 @@
 
         tr.innerHTML = `<td class="name-cell">${person}</td>` + 
                        diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
-                       `<td class="total-col">${rowTotal}</td>` +
-                       `<td class="total-col" style="color:#00ffea">${pData.okCount}</td>` +
-                       `<td class="total-col" style="color:#ff69b4">${pData.ndfCount}</td>` +
+                       `<td class="total-col">
+                          <div class="total-split">
+                            <div class="total-sum">${rowTotal}</div>
+                            <div class="total-sub">
+                              <span class="t-ok">OK: ${pData.okCount}</span>
+                              <span class="t-ndf">NDF: ${pData.ndfCount}</span>
+                            </div>
+                          </div>
+                        </td>` +
                        `<td class="total-col">${pData.days.size}</td>`;
         tbody.appendChild(tr);
       });
@@ -319,7 +316,7 @@
       container.innerHTML = '';
       const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
       if(diagonals.length === 0) {
-          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych Scrap/Waiting</p>';
+          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych</p>';
           return;
       }
       const table = document.createElement('table');
@@ -344,7 +341,6 @@
         clearInterval(countdownTimer);
         update();
     });
-    
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     document.getElementById('date-from').value = todayStr;
