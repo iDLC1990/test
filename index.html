@@ -71,37 +71,32 @@
   </details>
 
   <script>
-    // Настройки
     const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
     const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
 
-    let refreshInterval = 300; // 5 минут
+    let refreshInterval = 300; 
     let countdown = refreshInterval;
     let countdownTimer;
     let lastFilteredData = []; 
 
-    // Исправленная логика таймера
     function startCountdown() {
-      clearInterval(countdownTimer); // Очищаем старый интервал, если он был
-      countdown = refreshInterval; // Сброс времени
+      clearInterval(countdownTimer);
+      countdown = refreshInterval;
       
       countdownTimer = setInterval(() => {
         countdown--;
-        
         const mins = Math.floor(countdown / 60);
         const secs = String(countdown % 60).padStart(2, '0');
         document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
-        
         if (countdown <= 0) {
-          clearInterval(countdownTimer); // Останавливаем перед обновлением
+          clearInterval(countdownTimer);
           update(); 
         }
       }, 1000);
     }
 
-    // Словари диагоналей
     const diagonalMapPrefix = { 'WH8':55,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
     const diagonalMap = {
       '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
@@ -190,24 +185,36 @@
 
       btn.style.backgroundColor = "#008080";
       btn.textContent = "Aktualizuj";
-      console.log("Auto-refresh complete: " + new Date().toLocaleTimeString());
-      
-      // Запускаем таймер заново ПОСЛЕ завершения всех операций
       startCountdown();
     }
 
+    // --- ОБНОВЛЕННАЯ ЛОГИКА ПОДСЧЕТА ---
     function calculateDetailedStats(data){
       const stats = {};
       data.forEach(({date, serial, status, person})=>{
         if(!validStatuses.includes(status)) return;
         const diagonals = getDiagonals(serial);
         if(diagonals.length===0) return;
-        if(!stats[person]) stats[person]={};
+
+        if(!stats[person]) {
+            stats[person] = { 
+                diagonals: {}, 
+                okCount: 0, 
+                ndfCount: 0, 
+                days: new Set() 
+            };
+        }
+
+        const day = date.split(' ')[0];
+        if(day) stats[person].days.add(day);
+
+        // Считаем OK и NDF отдельно
+        if(status === 'OK') stats[person].okCount++;
+        if(status === 'NDF') stats[person].ndfCount++;
+
         diagonals.forEach(diagonal=>{
-          if(!stats[person][diagonal]) stats[person][diagonal]={ sum:0, days:new Set() };
-          stats[person][diagonal].sum++;
-          const day = date.split(' ')[0];
-          if(day) stats[person][diagonal].days.add(day);
+          if(!stats[person].diagonals[diagonal]) stats[person].diagonals[diagonal] = { sum:0 };
+          stats[person].diagonals[diagonal].sum++;
         });
       });
       return stats;
@@ -231,20 +238,31 @@
       return stats;
     }
 
+    // --- ОБНОВЛЕННАЯ ТАБЛИЦА ---
     function renderTable(stats){
       const container=document.getElementById('stats-container'); 
       container.innerHTML='';
-      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p).map(Number)))).sort((a,b)=>b-a);
+      
+      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
+      
       let people=Object.keys(stats).sort((a,b)=>{
-        let sumA = Object.values(stats[a]).reduce((acc,curr)=>acc+curr.sum,0);
-        let sumB = Object.values(stats[b]).reduce((acc,curr)=>acc+curr.sum,0);
+        let sumA = stats[a].okCount + stats[a].ndfCount;
+        let sumB = stats[b].okCount + stats[b].ndfCount;
         return sumB - sumA;
       });
 
       if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych dla wybranych dat</p>'; return; }
 
       const table=document.createElement('table');
-      const header = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}<th class="total-col">Total</th><th class="total-col">Dni</th></tr></thead>`;
+      // Добавлены заголовки OK и NDF
+      const header = `<thead><tr>
+                        <th>Name</th>
+                        ${diagonals.map(d=>`<th>${d}</th>`).join('')}
+                        <th class="total-col">Total</th>
+                        <th class="total-col" style="color:#00ffea">OK</th>
+                        <th class="total-col" style="color:#ff69b4">NDF</th>
+                        <th class="total-col">Dni</th>
+                      </tr></thead>`;
       table.innerHTML = header;
 
       const tbody = document.createElement('tbody');
@@ -253,19 +271,15 @@
         tr.className = 'person-row';
         tr.onclick = () => toggleDetails(tr, person);
 
-        let rowTotal = 0;
-        const allDays = new Set();
-        diagonals.forEach(d=>{
-          if(stats[person][d]) {
-            rowTotal += stats[person][d].sum;
-            stats[person][d].days.forEach(day => allDays.add(day));
-          }
-        });
+        const pData = stats[person];
+        const rowTotal = pData.okCount + pData.ndfCount;
 
         tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-                       diagonals.map(d=>`<td>${stats[person][d] ? stats[person][d].sum : '-'}</td>`).join('') +
+                       diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
                        `<td class="total-col">${rowTotal}</td>` +
-                       `<td class="total-col">${allDays.size}</td>`;
+                       `<td class="total-col" style="color:#00ffea">${pData.okCount}</td>` +
+                       `<td class="total-col" style="color:#ff69b4">${pData.ndfCount}</td>` +
+                       `<td class="total-col">${pData.days.size}</td>`;
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
@@ -277,58 +291,26 @@
         row.nextSibling.remove();
         return;
       }
-
       const details = lastFilteredData.filter(d => d.person === personName);
       const detailRow = document.createElement('tr');
       detailRow.className = 'detail-row';
-      
       let rowsHtml = details.map(d => {
         let statusClass = "st-ok";
         let rowBg = "transparent";
         const s = d.status.toUpperCase();
-
-        if (s.includes('SCRAP')) {
-            statusClass = "st-scrap";
-            rowBg = "rgba(255, 0, 0, 0.2)"; 
-        } else if (s.includes('WAITING')) {
-            statusClass = "st-waiting";
-            rowBg = "rgba(255, 255, 0, 0.1)";
-        } else if (s.includes('NDF')) {
-            statusClass = "st-ndf";
-            rowBg = "rgba(255, 105, 180, 0.2)";
-        }
-
-        return `
-          <tr style="background-color: ${rowBg};">
-            <td class="${statusClass}">${d.serial}</td>
-            <td class="${statusClass}">${d.status}</td>
-            <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
-            <td class="${statusClass}">${d.statusH}</td>
-            <td class="${statusClass}">${d.matrixStatus}</td>
-            <td class="${statusClass}">${d.description}</td>
-          </tr>
-        `;
+        if (s.includes('SCRAP')) { statusClass = "st-scrap"; rowBg = "rgba(255, 0, 0, 0.2)"; } 
+        else if (s.includes('WAITING')) { statusClass = "st-waiting"; rowBg = "rgba(255, 255, 0, 0.1)"; } 
+        else if (s.includes('NDF')) { statusClass = "st-ndf"; rowBg = "rgba(255, 105, 180, 0.2)"; }
+        return `<tr style="background-color: ${rowBg};">
+                  <td class="${statusClass}">${d.serial}</td>
+                  <td class="${statusClass}">${d.status}</td>
+                  <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
+                  <td class="${statusClass}">${d.statusH}</td>
+                  <td class="${statusClass}">${d.matrixStatus}</td>
+                  <td class="${statusClass}">${d.description}</td>
+                </tr>`;
       }).join('');
-
-      detailRow.innerHTML = `
-        <td colspan="100%">
-          <table class="detail-table">
-            <thead>
-              <tr>
-                <th>Serial</th>
-                <th>Status</th>
-                <th>FINALNA</th>
-                <th>H Status</th>
-                <th>New / NP</th>
-                <th>Info / Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rowsHtml}
-            </tbody>
-          </table>
-        </td>`;
-      
+      detailRow.innerHTML = `<td colspan="100%"><table class="detail-table"><thead><tr><th>Serial</th><th>Status</th><th>FINALNA</th><th>H Status</th><th>New / NP</th><th>Info / Description</th></tr></thead><tbody>${rowsHtml}</tbody></table></td>`;
       row.after(detailRow);
     }
 
@@ -358,19 +340,15 @@
       container.appendChild(table);
     }
 
-    // Инициализация событий
     document.getElementById('update-btn').addEventListener('click', () => {
         clearInterval(countdownTimer);
         update();
     });
     
-    // Установка даты на сегодня при загрузке
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     document.getElementById('date-from').value = todayStr;
     document.getElementById('date-to').value = todayStr;
-
-    // Первый запуск при открытии страницы
     update();
   </script>
 </body>
