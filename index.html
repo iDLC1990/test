@@ -31,12 +31,12 @@
 
     th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
     
-    /* Стили для разделенного Total */
-    .total-split { display: flex; flex-direction: column; gap: 2px; align-items: center; justify-content: center; font-size: 12px; }
-    .total-sum { font-size: 15px; border-bottom: 1px solid #555; width: 100%; padding-bottom: 2px; margin-bottom: 2px; }
-    .total-sub { display: flex; gap: 8px; justify-content: center; width: 100%; }
+    /* Стили для нового отображения Total (12 / 10 / 2) */
+    .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
+    .total-sum { font-weight: bold; color: #ffffff; }
     .t-ok { color: #00ffea; }
     .t-ndf { color: #ff69b4; }
+    .sep { color: #666; font-weight: normal; }
 
     .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
     .detail-table { width: 100%; border: 1px solid #444; }
@@ -251,7 +251,7 @@
       const header = `<thead><tr>
                         <th>Name</th>
                         ${diagonals.map(d=>`<th>${d}</th>`).join('')}
-                        <th class="total-col">Total (OK / NDF)</th>
+                        <th class="total-col">Total (Sum / OK / NDF)</th>
                         <th class="total-col">Dni</th>
                       </tr></thead>`;
       table.innerHTML = header;
@@ -269,11 +269,11 @@
                        diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
                        `<td class="total-col">
                           <div class="total-split">
-                            <div class="total-sum">${rowTotal}</div>
-                            <div class="total-sub">
-                              <span class="t-ok">OK: ${pData.okCount}</span>
-                              <span class="t-ndf">NDF: ${pData.ndfCount}</span>
-                            </div>
+                            <span class="total-sum">${rowTotal}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ok">${pData.okCount}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ndf">${pData.ndfCount}</span>
                           </div>
                         </td>` +
                        `<td class="total-col">${pData.days.size}</td>`;
