@@ -1,189 +1,351 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="pl">
 <head>
-    <meta charset="UTF-8">
-    <title>L2 Respawn Tracker - Clean</title>
-    <style>
-        body { margin: 0; padding: 0; background: #050505; color: #eee; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
-        #viewport { width: 100vw; height: 100vh; cursor: grab; overflow: hidden; position: relative; background: #000; }
-        #map-wrapper { position: absolute; transform-origin: 0 0; width: 5062px; height: 4210px; background-repeat: no-repeat; background-size: 100% 100%; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCDR LIVE DATA 2026</title>
+  <style>
+    body {
+      background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
+    }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.6); flex-wrap: wrap; border-bottom: 2px solid #00cccc; }
+    .header h1 { margin: 0; color: #00cccc; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+    .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+    .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
+    input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
+    
+    #auto-timer { color: #00ffea; font-size: 14px; font-family: monospace; min-width: 180px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; }
 
-        /* МЕТКИ */
-        .rb-marker {
-            position: absolute; width: 24px; height: 24px;
-            border-radius: 50%; transform: translate(-50%, -50%);
-            border: 2px solid #fff; z-index: 10; cursor: pointer;
-            transition: all 0.3s ease;
-            background: #000; border-color: #555;
-        }
+    #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    th, td { border: 1px solid #333; padding: 12px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
+    th { background-color: #1a1a1a; color: #00cccc; font-weight: bold; position: sticky; top: 0; z-index: 2; }
+    
+    .person-row { cursor: pointer; transition: background 0.2s; }
+    .person-row:hover { background-color: rgba(0, 204, 204, 0.15); }
+    td.name-cell { background-color: #1a1a1a; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; border-right: 2px solid #00cccc; }
 
-        /* ЖИВОЙ БОСС (ПОСЛЕ ТАЙМЕРА) */
-        .rb-marker.is-alive {
-            background: radial-gradient(circle, #ff3300 0%, #880000 100%);
-            border-color: #fff;
-            box-shadow: 0 0 15px rgba(255, 50, 0, 0.9);
-            cursor: default; /* Больше не кликабельна */
-        }
-        
-        .rb-marker::after {
-            content: attr(data-name); position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); color: #0f8; padding: 2px 8px;
-            border-radius: 4px; font-size: 11px; white-space: nowrap; border: 1px solid #444; pointer-events: none;
-        }
+    th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
+    
+    /* Стили для нового отображения Total (12 / 10 / 2) */
+    .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
+    .total-sum { font-weight: bold; color: #ffffff; }
+    .t-ok { color: #00ffea; }
+    .t-ndf { color: #ff69b4; }
+    .sep { color: #666; font-weight: normal; }
 
-        /* ТАЙМЕР */
-        .rb-timer {
-            position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
-            background: #000; color: #00ffcc; padding: 3px 8px; border-radius: 4px;
-            font-weight: bold; font-family: monospace; font-size: 14px;
-            border: 1px solid #00ffcc; z-index: 110; pointer-events: none;
-            box-shadow: 0 0 10px rgba(0, 255, 200, 0.3);
-        }
+    .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
+    .detail-table { width: 100%; border: 1px solid #444; }
+    .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
+    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border-bottom: 1px solid #222; }
 
-        #hint {
-            position: fixed; top: 15px; left: 15px; 
-            background: rgba(0,0,0,0.8); padding: 10px 15px; 
-            border-radius: 8px; border: 1px solid #0f8; z-index: 1000;
-            font-size: 13px; pointer-events: none;
-        }
-    </style>
+    .st-ndf { color: #ff69b4 !important; font-weight: bold; }
+    .st-scrap { color: #ff4444 !important; font-weight: bold; }
+    .st-waiting { color: #ffff00 !important; font-weight: bold; }
+    .st-ok { color: #ffffff; } 
+
+    .cell-split { display: flex; justify-content: space-around; gap: 10px; }
+    .scrap { color: #ff4444; font-weight: bold; }
+    .waiting { color: #ffff00; font-weight: bold; }
+    
+    details { width: 95%; margin: 10px auto; background: rgba(0,0,0,0.5); border-radius: 8px; }
+    summary { cursor: pointer; font-size: 18px; color: #00cccc; padding: 15px; font-weight: bold; outline: none; }
+    summary:hover { color: #fff; }
+  </style>
 </head>
 <body>
+  <div class="header">
+    <h1>LCDR LIVE DATA 2026</h1>
+    <div class="controls">
+      <label class="date-info">Od:</label>
+      <input type="date" id="date-from"/>
+      <label class="date-info">Do:</label>
+      <input type="date" id="date-to"/>
+      <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
+      <div id="auto-timer">Auto refresh in: --:--</div>
+    </div>
+  </div>
 
-<div id="hint">Кликни по <b>чёрной метке</b>, чтобы запустить таймер респауна.</div>
+  <div id="stats-container"></div>
 
-<div id="viewport">
-    <div id="map-wrapper"></div>
-</div>
+  <details id="scrap-waiting-table">
+    <summary>📊 Scrap / Waiting Statistics</summary>
+    <div id="scrap-waiting-container"></div>
+  </details>
 
-<script>
-    const MAP_IMAGE = "https://github.com/iDLC1990/FarmRB/blob/main/map.gif?raw=true";
-    let bossData = [
-        { "name": "Ember", "pos": "top:1173px;left:4720px;" },
-        { "name": "Hestia, Guardian Deity of the Hot Springs", "pos": "top:1152px;left:4191px;" },
-        { "name": "Ketra's Chief Brakki", "pos": "top:1385px;left:4289px;" },
-        { "name": "Ketra's Commander Tayr", "pos": "top:1421px;left:4298px;" },
-        { "name": "Ketra's Hero Hekaton", "pos": "top:1477px;left:4316px;" },
-        { "name": "Varka's Hero Shadith", "pos": "top:1750px;left:4017px;" },
-        { "name": "Varka's Commander Mos", "pos": "top:1770px;left:3960px;" },
-        { "name": "Varka's Chief Horus", "pos": "top:1721px;left:3923px;" },
-        { "name": "Vanor Chief Kandra", "pos": "top:1565px;left:4027px;" },
-        { "name": "Queen Shyeed", "pos": "top:1714px;left:3813px;" },
-        { "name": "Uruka", "pos": "top:1990px;left:3002px;" },
-        { "name": "Plague Golem", "pos": "top:1584px;left:4509px;" },
-        { "name": "Andreas van Halter", "pos": "top:1640px;left:3222px;" },
-        { "name": "Lord of Splendor Anays", "pos": "top:1402px;left:4036px;" },
-        { "name": "Sealed Evil Power Sailren", "pos": "top:1956px;left:3236px;" },
-        { "name": "Soul of Fire Nastron", "pos": "top:1411px;left:4266px;" },
-        { "name": "Soul of Water Ashutar", "pos": "top:1765px;left:3911px;" },
-        { "name": "Daimon the White-Eyed", "pos": "top:1717px;left:4660px;" },
-        { "name": "Last Lesser Giant Glaki", "pos": "top:2492px;left:4526px;" },
-        { "name": "Ocean Flame Ashakiel", "pos": "top:3264px;left:4100px;" },
-        { "name": "Flamestone Giant", "pos": "top:2014px;left:4287px;" },
-        { "name": "Palatanos of Horrific Power", "pos": "top:1906px;left:4305px;" },
-        { "name": "Storm Winged Naga", "pos": "top:1894px;left:4227px;" },
-        { "name": "Lesser Giant Olkuth", "pos": "top:2405px;left:4679px;" },
-        { "name": "Death Lord Shax", "pos": "top:1997px;left:4512px;" },
-        { "name": "Death Lord Ipos", "pos": "top:1949px;left:4379px;" },
-        { "name": "Bloody Empress Decarbia", "pos": "top:2161px;left:4690px;" },
-        { "name": "Krokian Padisha Sobekk", "pos": "top:3291px;left:4064px;" },
-        { "name": "Fafurion's Herald Lokness", "pos": "top:3295px;left:3910px;" },
-        { "name": "Eilhalder von Hellmann", "pos": "top:1729px;left:3504px;" },
-        { "name": "Roaring Skylancer", "pos": "top:2527px;left:4165px;" },
-        { "name": "Meanas Anor", "pos": "top:1992px;left:4402px;" },
-        { "name": "Beast Lord Behemoth", "pos": "top:1870px;left:4098px;" },
-        { "name": "Icicle Emperor Bumbalump", "pos": "top:1103px;left:4403px;" },
-        { "name": "Water Dragon Seer Sheshark", "pos": "top:3295px;left:3959px;" },
-        { "name": "Doom Blade Tanatos", "pos": "top:1953px;left:4150px;" },
-        { "name": "Shilen's Messenger Cabrio", "pos": "top:2145px;left:4614px;" },
-        { "name": "Palibati Queen Themis", "pos": "top:2226px;left:4712px;" },
-        { "name": "Flame of Splendor Barakiel", "pos": "top:1376px;left:3793px;" },
-        { "name": "Anakim's Nemesis Zakaron", "pos": "top:2750px;left:4256px;" },
-        { "name": "Spirit of Andras the Betrayer", "pos": "top:1851px;left:4661px;" },
-        { "name": "Kernon's Faithful Servant Kelone", "pos": "top:1838px;left:4284px;" },
-        { "name": "Last Titan Utenus", "pos": "top:2579px;left:4672px;" },
-        { "name": "Demons Agent Falston", "pos": "top:1460px;left:3819px;" },
-        { "name": "Gargoyle Lord Tiphon", "pos": "top:1853px;left:4509px;" },
-        { "name": "Rahha", "pos": "top:1981px;left:4047px;" },
-        { "name": "Hekaton Prime", "pos": "top:2606px;left:4688px;" },
-        { "name": "Shilen's Priest Hisilrome", "pos": "top:2279px;left:4503px;" },
-        { "name": "Fierce Tiger King Angel", "pos": "top:2713px;left:4517px;" },
-        { "name": "Gorgolos", "pos": "top:2542px;left:4659px;" },
-        { "name": "Roaring Lord Kastor", "pos": "top:2035px;left:3921px;" },
-        { "name": "Abyss Brukunt", "pos": "top:2721px;left:4385px;" },
-        { "name": "Demon Kurikups", "pos": "top:3725px;left:3430px;" },
-        { "name": "Ghost of the Lidia", "pos": "top:1906px;left:4528px;" },
-        { "name": "Enmity Ghost Ramdal", "pos": "top:2128px;left:3955px;" },
-        { "name": "Immortal Savior Mardil", "pos": "top:2216px;left:3954px;" },
-        { "name": "Death Lord Hallate", "pos": "top:2175px;left:3959px;" },
-        { "name": "Korim", "pos": "top:2259px;left:3958px;" },
-        { "name": "Kernon", "pos": "top:2129px;left:4074px;" },
-        { "name": "Fire of Wrath Shuriel", "pos": "top:2174px;left:4076px;" },
-        { "name": "Longhorn Golkonda", "pos": "top:2216px;left:4078px;" },
-        { "name": "Cherub Galaxia", "pos": "top:2261px;left:4084px;" },
-        { "name": "MILENU", "pos": "top:3972px;left:3737px;" }
-    ];
+  <script>
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+    const validStatuses = ['OK', 'NDF'];
 
-    const wrapper = document.getElementById('map-wrapper');
-    const viewport = document.getElementById('viewport');
-    let scale = 0.2, posX = 0, posY = 0;
+    let refreshInterval = 30; 
+    let countdown = refreshInterval;
+    let countdownTimer;
+    let lastFilteredData = []; 
 
-    function init() {
-        wrapper.style.backgroundImage = `url('${MAP_IMAGE}')`;
-        bossData.forEach((boss) => {
-            const m = document.createElement('div');
-            m.className = 'rb-marker';
-            m.style.cssText = boss.pos;
-            m.setAttribute('data-name', boss.name);
-            
-            m.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Запускаем только если босс не "жив" и таймер не идет
-                if (!m.classList.contains('is-alive') && !boss.timerInterval) {
-                    startRespawn(boss);
-                }
-            });
+    function startCountdown() {
+      clearInterval(countdownTimer);
+      countdown = refreshInterval;
+      countdownTimer = setInterval(() => {
+        countdown--;
+        const mins = Math.floor(countdown / 60);
+        const secs = String(countdown % 60).padStart(2, '0');
+        document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
+        if (countdown <= 0) {
+          clearInterval(countdownTimer);
+          update(); 
+        }
+      }, 1000);
+    }
 
-            wrapper.appendChild(m);
-            boss.markerEl = m;
+    const diagonalMapPrefix = { 'WH8':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
+    const diagonalMap = {
+      '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
+      '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
+      '438':43,'435':43,'430':43,'428':43,'425':43,'420':43,
+      '418':43,'415':43,'398':43,'395':43,'390':43,
+      '348':32,'345':32,'340':32,'328':32,'325':32,'320':32,
+      '318':32,'315':32,'278':27,'275':27,'270':27,
+      '248':24,'245':24,'240':24,'238':24,'235':24,'230':24
+    };
+
+    function getDiagonals(serial){
+      if(!serial || serial.length<6) return [];
+      const upper = serial.toUpperCase();
+      const result = new Set();
+      const match = upper.match(/^[A-Z]{3}(\d{3})/);
+      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
+      const prefix = upper.slice(0,3);
+      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
+      return [...result];
+    }
+
+    async function getData(sheetName){
+      try{
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}&t=${new Date().getTime()}`);
+        const data = await response.json();
+        return data.values || [];
+      }catch(err){ 
+        console.error("Fetch error:", err);
+        return []; 
+      }
+    }
+
+    async function fetchData(){
+      const sheetNames = ['FI Station KOVALCHYK Y.','FI Station 2 ULANOVYCH.R'];
+      let combined = [];
+      for(const name of sheetNames){
+        const sheetData = await getData(name);
+        if(sheetData.length<2) continue;
+        const rows = sheetData.slice(1);
+        const mapped = rows.map(row=>({
+          date: row[0]||'',
+          serial: row[2]||'',
+          status: (row[4]||'').toUpperCase(),
+          finalna: row[6]||'',
+          person: row[5]||'',
+          statusH: row[7]||'',
+          matrixStatus: row[9]||'',
+          description: row[10]||''
+        }));
+        combined = combined.concat(mapped);
+      }
+      return combined;
+    }
+
+    async function update(){
+      const btn = document.getElementById('update-btn');
+      const timerLabel = document.getElementById('auto-timer');
+      btn.style.backgroundColor = "#555";
+      btn.textContent = " ";
+      timerLabel.textContent = " ";
+
+      const dateFrom = document.getElementById('date-from').value;
+      const dateTo = document.getElementById('date-to').value;
+      
+      if(!dateFrom || !dateTo) { 
+        btn.textContent = "Aktualizuj";
+        btn.style.backgroundColor = "#008080";
+        startCountdown(); 
+        return; 
+      }
+
+      const allData = await fetchData();
+      lastFilteredData = allData.filter(d=>{
+        const dDate = d.date.split(' ')[0];
+        return dDate >= dateFrom && dDate <= dateTo;
+      });
+
+      const stats = calculateDetailedStats(lastFilteredData);
+      renderTable(stats);
+
+      const scrapWaitingStats = calculateScrapWaitingStats(lastFilteredData);
+      renderScrapWaitingTable(scrapWaitingStats);
+
+      btn.style.backgroundColor = "#008080";
+      btn.textContent = "Aktualizuj";
+      startCountdown();
+    }
+
+    function calculateDetailedStats(data){
+      const stats = {};
+      data.forEach(({date, serial, status, person})=>{
+        if(!validStatuses.includes(status)) return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+
+        if(!stats[person]) {
+            stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
+        }
+
+        const day = date.split(' ')[0];
+        if(day) stats[person].days.add(day);
+        if(status === 'OK') stats[person].okCount++;
+        if(status === 'NDF') stats[person].ndfCount++;
+
+        diagonals.forEach(diagonal=>{
+          if(!stats[person].diagonals[diagonal]) stats[person].diagonals[diagonal] = { sum:0 };
+          stats[person].diagonals[diagonal].sum++;
         });
-        update();
+      });
+      return stats;
     }
 
-    function startRespawn(boss) {
-        let timeLeft = 15 * 60; // 15 минут
-        const timerDisplay = document.createElement('div');
-        timerDisplay.className = 'rb-timer';
-        boss.markerEl.appendChild(timerDisplay);
+    function calculateScrapWaitingStats(data){
+      const stats = {};
+      data.forEach(({serial, status, person})=>{
+        if(!person||!serial||!status) return;
+        const upperStatus = status.toUpperCase();
+        let type = (upperStatus.includes('SCRAP')) ? 'scrap' : (upperStatus.includes('WAITING')) ? 'waiting' : null;
+        if(!type) return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+        if(!stats[person]) stats[person]={};
+        diagonals.forEach(diagonal=>{
+          if(!stats[person][diagonal]) stats[person][diagonal]={scrap:0, waiting:0};
+          stats[person][diagonal][type]++;
+        });
+      });
+      return stats;
+    }
 
-        boss.timerInterval = setInterval(() => {
-            const m = Math.floor(timeLeft / 60);
-            const s = timeLeft % 60;
-            timerDisplay.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-            
-            if (timeLeft <= 0) {
-                clearInterval(boss.timerInterval);
-                boss.timerInterval = null;
-                timerDisplay.remove();
-                
-                // РЕСПАУН: становится красным навсегда
-                boss.markerEl.classList.add('is-alive');
+    function renderTable(stats){
+      const container=document.getElementById('stats-container'); 
+      container.innerHTML='';
+      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
+      
+      let people=Object.keys(stats).sort((a,b)=>{
+        let sumA = stats[a].okCount + stats[a].ndfCount;
+        let sumB = stats[b].okCount + stats[b].ndfCount;
+        return sumB - sumA;
+      });
+
+      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych</p>'; return; }
+
+      const table = document.createElement('table');
+      const header = `<thead><tr>
+                        <th>Name</th>
+                        ${diagonals.map(d=>`<th>${d}</th>`).join('')}
+                        <th class="total-col">Total (Sum / OK / NDF)</th>
+                        <th class="total-col">Dni</th>
+                      </tr></thead>`;
+      table.innerHTML = header;
+
+      const tbody = document.createElement('tbody');
+      people.forEach(person=>{
+        const tr = document.createElement('tr');
+        tr.className = 'person-row';
+        tr.onclick = () => toggleDetails(tr, person);
+
+        const pData = stats[person];
+        const rowTotal = pData.okCount + pData.ndfCount;
+
+        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
+                       diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
+                       `<td class="total-col">
+                          <div class="total-split">
+                            <span class="total-sum">${rowTotal}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ok">${pData.okCount}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ndf">${pData.ndfCount}</span>
+                          </div>
+                        </td>` +
+                       `<td class="total-col">${pData.days.size}</td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
+    }
+
+    function toggleDetails(row, personName) {
+      if(row.nextSibling && row.nextSibling.classList.contains('detail-row')){
+        row.nextSibling.remove();
+        return;
+      }
+      const details = lastFilteredData.filter(d => d.person === personName);
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'detail-row';
+      let rowsHtml = details.map(d => {
+        let statusClass = "st-ok";
+        let rowBg = "transparent";
+        const s = d.status.toUpperCase();
+        if (s.includes('SCRAP')) { statusClass = "st-scrap"; rowBg = "rgba(255, 0, 0, 0.2)"; } 
+        else if (s.includes('WAITING')) { statusClass = "st-waiting"; rowBg = "rgba(255, 255, 0, 0.1)"; } 
+        else if (s.includes('NDF')) { statusClass = "st-ndf"; rowBg = "rgba(255, 105, 180, 0.2)"; }
+        return `<tr style="background-color: ${rowBg};">
+                  <td class="${statusClass}">${d.serial}</td>
+                  <td class="${statusClass}">${d.status}</td>
+                  <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
+                  <td class="${statusClass}">${d.statusH}</td>
+                  <td class="${statusClass}">${d.matrixStatus}</td>
+                  <td class="${statusClass}">${d.description}</td>
+                </tr>`;
+      }).join('');
+      detailRow.innerHTML = `<td colspan="100%"><table class="detail-table"><thead><tr><th>Serial</th><th>Status</th><th>FINALNA</th><th>H Status</th><th>New / NP</th><th>Info / Description</th></tr></thead><tbody>${rowsHtml}</tbody></table></td>`;
+      row.after(detailRow);
+    }
+
+    function renderScrapWaitingTable(stats){
+      const container = document.getElementById('scrap-waiting-container');
+      container.innerHTML = '';
+      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
+      if(diagonals.length === 0) {
+          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych</p>';
+          return;
+      }
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}</tr></thead>`;
+      const tbody = document.createElement('tbody');
+      Object.keys(stats).forEach(person => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
+          diagonals.map(d => {
+            if(stats[person][d]) {
+              return `<td><div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div></td>`;
             }
-            timeLeft--;
-        }, 1000);
+            return '<td>-</td>';
+          }).join('');
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
     }
 
-    function update() { wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
-
-    // Камера (приближение и перемещение)
-    viewport.onwheel = e => { e.preventDefault(); const d = e.deltaY > 0 ? 0.8 : 1.2; const ns = Math.min(Math.max(0.05, scale * d), 4); posX = e.clientX - (e.clientX - posX) * (ns / scale); posY = e.clientY - (e.clientY - posY) * (ns / scale); scale = ns; update(); };
-    let isDrag = false, lx, ly;
-    viewport.onmousedown = e => { if(e.button === 0) { isDrag = true; lx = e.clientX; ly = e.clientY; } };
-    window.onmousemove = e => { if (isDrag) { posX += e.clientX - lx; posY += e.clientY - ly; lx = e.clientX; ly = e.clientY; update(); } };
-    window.onmouseup = () => { isDrag = false; };
-    viewport.oncontextmenu = e => e.preventDefault();
-    
-    init();
-</script>
+    document.getElementById('update-btn').addEventListener('click', () => {
+        clearInterval(countdownTimer);
+        update();
+    });
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    document.getElementById('date-from').value = todayStr;
+    document.getElementById('date-to').value = todayStr;
+    update();
+  </script>
 </body>
 </html>
