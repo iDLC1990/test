@@ -626,34 +626,39 @@ setInterval(() => {
     document.body.style.backgroundSize = "cover";
 }, 180000);
 
-// ГОРЯЧИЕ КЛАВИШИ (ИСПРАВЛЕНО)
+// ГОРЯЧИЕ КЛАВИШИ (МАКСИМАЛЬНО СОВМЕСТИМАЯ ВЕРСИЯ)
 window.addEventListener('keydown', (e) => {
-    // Не срабатывать, если пользователь пишет в поиске или в массовом поиске
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-        // Единственное исключение — Escape для закрытия модалки
-        if (e.key === 'Escape') {
-             modal.classList.remove('show');
+    // 1. Проверяем, не пишет ли пользователь в полях ввода
+    const activeElem = document.activeElement;
+    if (activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA')) {
+        if (e.key === 'Escape') modal.classList.remove('show');
+        return; 
+    }
+
+    // 2. Проверяем нажатие Alt + 1 или Alt + 2
+    // Используем e.code, чтобы игнорировать раскладку клавиатуры
+    if (e.altKey) {
+        if (e.code === 'Digit1') {
+            e.preventDefault();
+            const b = document.getElementById('overview-block');
+            // Проверяем реальное состояние через getComputedStyle, если инлайн-стиль пуст
+            const isHidden = window.getComputedStyle(b).display === 'none';
+            b.style.display = isHidden ? 'block' : 'none';
         }
-        return;
+        
+        if (e.code === 'Digit2') {
+            e.preventDefault();
+            const b = document.getElementById('diag-block');
+            const isHidden = window.getComputedStyle(b).display === 'none';
+            b.style.display = isHidden ? 'block' : 'none';
+        }
     }
 
-    // Alt + 1 (Overview)
-    if (e.altKey && (e.key === '1' || e.code === 'Digit1')) {
-        e.preventDefault();
-        const b = document.getElementById('overview-block');
-        b.style.display = (b.style.display === 'none' || b.style.display === '') ? 'block' : 'none';
-    }
-    
-    // Alt + 2 (Diagonals)
-    if (e.altKey && (e.key === '2' || e.code === 'Digit2')) {
-        e.preventDefault();
-        const b = document.getElementById('diag-block');
-        b.style.display = (b.style.display === 'none' || b.style.display === '') ? 'block' : 'none';
-    }
-
+    // 3. Закрытие модалки на Escape
     if (e.key === 'Escape') {
         modal.classList.remove('show');
     }
+}, true); // Используем capture phase для надежности
 });
 
 
