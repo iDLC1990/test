@@ -625,21 +625,34 @@ setInterval(() => {
     document.body.style.background = `url('${backgrounds[bgIndex]}') no-repeat center center fixed`;
     document.body.style.backgroundSize = "cover";
 }, 180000);
-// ГОРЯЧИЕ КЛАВИШИ 
+
+// ГОРЯЧИЕ КЛАВИШИ (ИСПРАВЛЕНО)
 window.addEventListener('keydown', (e) => {
+    // Не срабатывать, если пользователь пишет в поиске или в массовом поиске
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        // Единственное исключение — Escape для закрытия модалки
+        if (e.key === 'Escape') {
+             modal.classList.remove('show');
+        }
+        return;
+    }
+
+    // Alt + 1 (Overview)
     if (e.altKey && (e.key === '1' || e.code === 'Digit1')) {
         e.preventDefault();
         const b = document.getElementById('overview-block');
-        b.style.display = b.style.display === 'none' ? 'block' : 'none';
+        b.style.display = (b.style.display === 'none' || b.style.display === '') ? 'block' : 'none';
     }
+    
+    // Alt + 2 (Diagonals)
     if (e.altKey && (e.key === '2' || e.code === 'Digit2')) {
         e.preventDefault();
         const b = document.getElementById('diag-block');
-        b.style.display = b.style.display === 'none' ? 'block' : 'none';
+        b.style.display = (b.style.display === 'none' || b.style.display === '') ? 'block' : 'none';
     }
 
     if (e.key === 'Escape') {
-        document.getElementById('modal').classList.remove('show');
+        modal.classList.remove('show');
     }
 });
 
