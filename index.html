@@ -625,6 +625,24 @@ setInterval(() => {
     document.body.style.background = `url('${backgrounds[bgIndex]}') no-repeat center center fixed`;
     document.body.style.backgroundSize = "cover";
 }, 180000);
+// ГОРЯЧИЕ КЛАВИШИ Alt+1 и Alt+2
+window.addEventListener('keydown', (e) => {
+    if (e.altKey && (e.key === '1' || e.code === 'Digit1')) {
+        e.preventDefault();
+        const b = document.getElementById('overview-block');
+        b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    }
+    if (e.altKey && (e.key === '2' || e.code === 'Digit2')) {
+        e.preventDefault();
+        const b = document.getElementById('diag-block');
+        b.style.display = b.style.display === 'none' ? 'block' : 'none';
+    }
+
+    if (e.key === 'Escape') {
+        document.getElementById('modal').classList.remove('show');
+    }
+});
+
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
