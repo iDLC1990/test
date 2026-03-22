@@ -495,7 +495,7 @@ function openModal(name) {
     const records = combinedDataCache.filter(r => r.name === name && (r.date || '').split(' ')[0] === lastDateStr);
 
     if (!records.length) {
-        modalBody.innerHTML = "<p>Brak danych</p>";
+        modalBody.innerHTML = "<p>Brak данных</p>";
     } else {
         let html = '<table><tr><th>Serial</th><th>Type</th><th>Status</th><th>OC</th><th>COMMENT</th></tr>';
         records.forEach(r => {
@@ -575,8 +575,14 @@ async function updateStats() {
     }
 }
 
-document.getElementById('overview-toggle').onclick = () => { const b = document.getElementById('overview-block'); b.style.display = b.style.display==='none'?'block':'none' };
-document.getElementById('diag-toggle').onclick = () => { const b = document.getElementById('diag-block'); b.style.display = b.style.display==='none'?'block':'none' };
+document.getElementById('overview-toggle').onclick = () => { 
+    const b = document.getElementById('overview-block'); 
+    b.style.display = (window.getComputedStyle(b).display === 'none') ? 'block' : 'none'; 
+};
+document.getElementById('diag-toggle').onclick = () => { 
+    const b = document.getElementById('diag-block'); 
+    b.style.display = (window.getComputedStyle(b).display === 'none') ? 'block' : 'none'; 
+};
 
 updateStats();
 setInterval(updateStats, 60000);
@@ -626,27 +632,24 @@ setInterval(() => {
     document.body.style.backgroundSize = "cover";
 }, 180000);
 
-// ГОРЯЧИЕ КЛАВИШИ (МАКСИМАЛЬНО СОВМЕСТИМАЯ ВЕРСИЯ)
+// ГОРЯЧИЕ КЛАВИШИ (НАДЕЖНАЯ ВЕРСИЯ)
 window.addEventListener('keydown', (e) => {
-    // 1. Проверяем, не пишет ли пользователь в полях ввода
-    const activeElem = document.activeElement;
-    if (activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA')) {
+    // Если фокус в любом поле ввода, горячие клавиши не должны мешать печатать
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
         if (e.key === 'Escape') modal.classList.remove('show');
-        return; 
+        return;
     }
 
-    // 2. Проверяем нажатие Alt + 1 или Alt + 2
-    // Используем e.code, чтобы игнорировать раскладку клавиатуры
     if (e.altKey) {
-        if (e.code === 'Digit1') {
+        // Alt + 1
+        if (e.code === 'Digit1' || e.key === '1') {
             e.preventDefault();
             const b = document.getElementById('overview-block');
-            // Проверяем реальное состояние через getComputedStyle, если инлайн-стиль пуст
             const isHidden = window.getComputedStyle(b).display === 'none';
             b.style.display = isHidden ? 'block' : 'none';
         }
-        
-        if (e.code === 'Digit2') {
+        // Alt + 2
+        if (e.code === 'Digit2' || e.key === '2') {
             e.preventDefault();
             const b = document.getElementById('diag-block');
             const isHidden = window.getComputedStyle(b).display === 'none';
@@ -654,12 +657,10 @@ window.addEventListener('keydown', (e) => {
         }
     }
 
-    // 3. Закрытие модалки на Escape
     if (e.key === 'Escape') {
         modal.classList.remove('show');
     }
-}, true); // Используем capture phase для надежности
-});
+}, true); // Приоритетный захват событий
 
 
 if ('serviceWorker' in navigator) {
