@@ -1,351 +1,638 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA 2026</title>
-  <style>
-    body {
-      background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      margin: 0;
-    }
-    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.6); flex-wrap: wrap; border-bottom: 2px solid #00cccc; }
-    .header h1 { margin: 0; color: #00cccc; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-    .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
-    input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
-    
-    #auto-timer { color: #00ffea; font-size: 14px; font-family: monospace; min-width: 180px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>LCDR LIVE DATA 2026</title>
 
-    #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-    th, td { border: 1px solid #333; padding: 12px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
-    th { background-color: #1a1a1a; color: #00cccc; font-weight: bold; position: sticky; top: 0; z-index: 2; }
-    
-    .person-row { cursor: pointer; transition: background 0.2s; }
-    .person-row:hover { background-color: rgba(0, 204, 204, 0.15); }
-    td.name-cell { background-color: #1a1a1a; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; border-right: 2px solid #00cccc; }
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LCDR 2026">
+<meta name="theme-color" content="#008080">
 
-    th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
-    
-    /* Стили для нового отображения Total (12 / 10 / 2) */
-    .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
-    .total-sum { font-weight: bold; color: #ffffff; }
-    .t-ok { color: #00ffea; }
-    .t-ndf { color: #ff69b4; }
-    .sep { color: #666; font-weight: normal; }
+<style>
+body {
+background: url('https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-iriser-1366957.jpg')
+no-repeat center center fixed;
+background-size: cover;
+color:#fff;
+font-family: Arial, sans-serif;
+transition: background 1s ease-in-out;
+margin: 0;
+}
 
-    .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
-    .detail-table { width: 100%; border: 1px solid #444; }
-    .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
-    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border-bottom: 1px solid #222; }
+body::before {
+content:"";
+position: fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background: rgba(0,0,0,0.5);
+z-index:-1;
+}
 
-    .st-ndf { color: #ff69b4 !important; font-weight: bold; }
-    .st-scrap { color: #ff4444 !important; font-weight: bold; }
-    .st-waiting { color: #ffff00 !important; font-weight: bold; }
-    .st-ok { color: #ffffff; } 
+.header {
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:20px 10%;
+background-color: rgba(17,17,17,0.7);
+border-bottom: 1px solid rgba(0, 128, 128, 0.3);
+}
 
-    .cell-split { display: flex; justify-content: space-around; gap: 10px; }
-    .scrap { color: #ff4444; font-weight: bold; }
-    .waiting { color: #ffff00; font-weight: bold; }
-    
-    details { width: 95%; margin: 10px auto; background: rgba(0,0,0,0.5); border-radius: 8px; }
-    summary { cursor: pointer; font-size: 18px; color: #00cccc; padding: 15px; font-weight: bold; outline: none; }
-    summary:hover { color: #fff; }
-  </style>
+.header h1 {
+margin:0;
+color:#008080;
+font-size:24px;
+}
+
+.date-info {
+color:#008080;
+font-size:18px;
+font-weight: bold;
+}
+
+.table-container {
+width:80%;
+margin:24px auto;
+}
+
+.table-header {
+background-color:#008080;
+color:#000;
+font-weight:bold;
+font-size:18px;
+padding:10px 16px;
+border-radius:10px 10px 0 0;
+display: flex;
+justify-content: space-between;
+align-items: center;
+}
+
+.toggle-btn {
+margin:8px 0;
+font-size:20px;
+cursor:pointer;
+background:none;
+border:none;
+color:#0ff;
+padding: 5px 10px;
+transition: 0.3s;
+}
+
+.toggle-btn:hover {
+    text-shadow: 0 0 8px #0ff;
+}
+
+table {
+width:100%;
+border-collapse:collapse;
+background-color:#5555559e;
+border-radius:0 0 10px 10px;
+}
+
+table, th, td {
+border:1px solid #fff;
+}
+
+th, td {
+padding:10px;
+text-align:center;
+}
+
+th {
+font-weight:bold;
+font-size:16px;
+background: rgba(0, 128, 128, 0.2);
+}
+
+td {
+font-size:16px;
+cursor:pointer;
+}
+
+.total-row {
+font-weight:bold;
+background-color:#333;
+color:#008080;
+}
+
+.sum-col {
+background-color: rgba(0,0,0,0.3);
+color:#0ff;
+font-weight: bold;
+}
+
+#search {
+width:100%;
+max-width: 600px;
+padding:12px;
+font-size:16px;
+border-radius:5px;
+border: 1px solid #008080;
+background: rgba(0,0,0,0.6);
+color: #fff;
+margin:20px auto;
+display:block;
+outline: none;
+}
+
+#search-result {
+margin-top:15px;
+}
+
+#search-result table {
+margin-top:10px;
+border:2px solid #0ff;
+background-color:#333;
+}
+
+/* Мигалка */
+@keyframes blink-active {
+  0% { background-color: rgba(0, 128, 128, 0.3); }
+  50% { background-color: rgba(0, 255, 255, 0.6); }
+  100% { background-color: rgba(0, 128, 128, 0.3); }
+}
+
+.latest-record {
+  animation: blink-active 1.5s infinite;
+  border: 2px solid #0ff !important;
+  font-weight: bold;
+}
+
+/* Модалка */
+#modal {
+display:none;
+position:fixed;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background: rgba(0,0,0,0.8);
+justify-content:center;
+align-items:center;
+z-index:10000;
+}
+
+#modal.show {
+display:flex;
+}
+
+#modal-content {
+background:#1a1a1a;
+color:#0ff;
+padding:20px;
+border:2px solid #008080;
+border-radius:10px;
+max-height:85%;
+overflow:auto;
+width:90%;
+max-width:1000px;
+box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+}
+
+#modal-close {
+background:#008080;
+color:#000;
+border:none;
+padding:8px 20px;
+cursor:pointer;
+font-weight:bold;
+margin-bottom:15px;
+border-radius: 4px;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#bulk-search-btn {
+    cursor: pointer;
+    font-size: 20px;
+    opacity: 0.8;
+}
+
+#secret-btn-kovalchyk {
+cursor: pointer;
+opacity: 0.4;
+font-size: 20px;
+transition: all 0.3s;
+user-select: none;
+padding: 0 5px;
+color: #0ff;
+}
+
+#secret-btn-kovalchyk:hover {
+opacity: 1;
+text-shadow: 0 0 8px #0ff;
+}
+
+#bulk-input {
+    width: 100%;
+    height: 150px;
+    background: #000;
+    color: #0ff;
+    border: 1px solid #008080;
+    padding: 10px;
+    margin-top: 10px;
+    font-family: monospace;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+#run-bulk-search {
+    background: #008080;
+    color: #000;
+    border: none;
+    padding: 10px 25px;
+    margin-top: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    border-radius: 4px;
+}
+
+@media (max-width: 900px) {
+.table-container { width:95%; }
+.header { padding:12px 4%; }
+.header h1 { font-size: 18px; }
+}
+</style>
 </head>
 <body>
-  <div class="header">
-    <h1>LCDR LIVE DATA 2026</h1>
-    <div class="controls">
-      <label class="date-info">Od:</label>
-      <input type="date" id="date-from"/>
-      <label class="date-info">Do:</label>
-      <input type="date" id="date-to"/>
-      <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
-      <div id="auto-timer">Auto refresh in: --:--</div>
+
+<div class="header">
+<h1>LCDR LIVE DATA 2026</h1>
+<div class="date-info" id="date-info">DATE: --</div>
+</div>
+
+<div class="table-container">
+<input type="text" id="search" placeholder="Podaj SN / pn czesci (Enter)">
+<div id="search-result"></div>
+</div>
+
+<div class="table-container">
+<button id="overview-toggle" class="toggle-btn">FI Overview</button>
+<div id="overview-block">
+<div class="table-header">
+    <span>FI Station Overview</span>
+    <div class="header-actions">
+        <span id="bulk-search-btn" title="Bulk Search">🔍</span>
+        <span id="secret-btn-kovalchyk" title="Copy Today's SN">·</span>
     </div>
-  </div>
+</div>
+<table id="combined-table">
+<thead>
+<tr>
+<th>NAME</th>
+<th>NDF</th>
+<th>OK</th>
+<th>WAITING</th>
+<th>SCRAP TTL</th>
+<th>SCRAP PNLA</th>
+<th class="sum-col">SUMA</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
 
-  <div id="stats-container"></div>
+<div class="table-container">
+<button id="diag-toggle" class="toggle-btn">FI Diagonals</button>
+<div id="diag-block">
+<div class="table-header">FI Station Diagonals</div>
+<table id="diag-table">
+<thead></thead>
+<tbody></tbody>
+</table>
+</div>
+</div>
 
-  <details id="scrap-waiting-table">
-    <summary>📊 Scrap / Waiting Statistics</summary>
-    <div id="scrap-waiting-container"></div>
-  </details>
+<div id="modal">
+<div id="modal-content">
+<button id="modal-close">Close</button>
+<div id="modal-body"></div>
+</div>
+</div>
 
-  <script>
-    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
-    const validStatuses = ['OK', 'NDF'];
+<script>
+const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+const sheetIdArchive = '1UWu4bcuHg6NHhK8ZvjDlQAIue6R1FLBlmAlBhHBj-D8';
 
-    let refreshInterval = 30; 
-    let countdown = refreshInterval;
-    let countdownTimer;
-    let lastFilteredData = []; 
+let combinedDataCache = []; 
 
-    function startCountdown() {
-      clearInterval(countdownTimer);
-      countdown = refreshInterval;
-      countdownTimer = setInterval(() => {
-        countdown--;
-        const mins = Math.floor(countdown / 60);
-        const secs = String(countdown % 60).padStart(2, '0');
-        document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
-        if (countdown <= 0) {
-          clearInterval(countdownTimer);
-          update(); 
-        }
-      }, 1000);
-    }
+const diagonalMapPrefix = {'WH8':55,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50};
+const diagonalMapSuffix = {'860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,'550':55,'545':55,'500':50,'498':50,'495':50,'490':50,'438':43,'435':43,'430':43,'428':43,'425':43,'420':43,'418':43,'415':43,'398':43,'395':43,'390':43,'348':32,'345':32,'340':32,'328':32,'325':32,'320':32,'318':32,'315':32,'278':27,'275':27,'270':27,'248':24,'245':24,'240':24,'238':24,'235':24,'230':24};
 
-    const diagonalMapPrefix = { 'WH8':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
-    const diagonalMap = {
-      '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
-      '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
-      '438':43,'435':43,'430':43,'428':43,'425':43,'420':43,
-      '418':43,'415':43,'398':43,'395':43,'390':43,
-      '348':32,'345':32,'340':32,'328':32,'325':32,'320':32,
-      '318':32,'315':32,'278':27,'275':27,'270':27,
-      '248':24,'245':24,'240':24,'238':24,'235':24,'230':24
-    };
+function extractDiagonal(serial) {
+    if (!serial) return null;
+    const s = serial.trim();
+    return diagonalMapPrefix[s.substring(0, 3)] || 
+           diagonalMapSuffix[s.substring(3, 6)] || 
+           diagonalMapSuffix[s.slice(-3)] || null;
+}
 
-    function getDiagonals(serial){
-      if(!serial || serial.length<6) return [];
-      const upper = serial.toUpperCase();
-      const result = new Set();
-      const match = upper.match(/^[A-Z]{3}(\d{3})/);
-      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
-      const prefix = upper.slice(0,3);
-      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
-      return [...result];
-    }
+function buildSheetURL(spreadsheetId, sheetName) {
+    return `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}?key=${apiKey}`;
+}
 
-    async function getData(sheetName){
-      try{
-        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}&t=${new Date().getTime()}`);
-        const data = await response.json();
+async function getData(sheetName, spreadsheetId = sheetId) {
+    try {
+        const res = await fetch(buildSheetURL(spreadsheetId, sheetName));
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
         return data.values || [];
-      }catch(err){ 
-        console.error("Fetch error:", err);
-        return []; 
-      }
+    } catch (e) {
+        console.error(`Fetch error ${sheetName}:`, e);
+        return null; 
     }
+}
 
-    async function fetchData(){
-      const sheetNames = ['FI Station KOVALCHYK Y.','FI Station 2 ULANOVYCH.R'];
-      let combined = [];
-      for(const name of sheetNames){
-        const sheetData = await getData(name);
-        if(sheetData.length<2) continue;
-        const rows = sheetData.slice(1);
-        const mapped = rows.map(row=>({
-          date: row[0]||'',
-          serial: row[2]||'',
-          status: (row[4]||'').toUpperCase(),
-          finalna: row[6]||'',
-          person: row[5]||'',
-          statusH: row[7]||'',
-          matrixStatus: row[9]||'',
-          description: row[10]||''
-        }));
-        combined = combined.concat(mapped);
-      }
-      return combined;
-    }
+async function fetchAndCacheData() {
+    try {
+        const [s1, s2, s3] = await Promise.all([
+            getData('FI Station KOVALCHYK Y.', sheetId),
+            getData('FI Station 2 ULANOVYCH.R', sheetId),
+            getData('2024', sheetIdArchive)
+        ]);
 
-    async function update(){
-      const btn = document.getElementById('update-btn');
-      const timerLabel = document.getElementById('auto-timer');
-      btn.style.backgroundColor = "#555";
-      btn.textContent = " ";
-      timerLabel.textContent = " ";
+        if (!s1 && !s2) return false;
 
-      const dateFrom = document.getElementById('date-from').value;
-      const dateTo = document.getElementById('date-to').value;
-      
-      if(!dateFrom || !dateTo) { 
-        btn.textContent = "Aktualizuj";
-        btn.style.backgroundColor = "#008080";
-        startCountdown(); 
-        return; 
-      }
-
-      const allData = await fetchData();
-      lastFilteredData = allData.filter(d=>{
-        const dDate = d.date.split(' ')[0];
-        return dDate >= dateFrom && dDate <= dateTo;
-      });
-
-      const stats = calculateDetailedStats(lastFilteredData);
-      renderTable(stats);
-
-      const scrapWaitingStats = calculateScrapWaitingStats(lastFilteredData);
-      renderScrapWaitingTable(scrapWaitingStats);
-
-      btn.style.backgroundColor = "#008080";
-      btn.textContent = "Aktualizuj";
-      startCountdown();
-    }
-
-    function calculateDetailedStats(data){
-      const stats = {};
-      data.forEach(({date, serial, status, person})=>{
-        if(!validStatuses.includes(status)) return;
-        const diagonals = getDiagonals(serial);
-        if(diagonals.length===0) return;
-
-        if(!stats[person]) {
-            stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
-        }
-
-        const day = date.split(' ')[0];
-        if(day) stats[person].days.add(day);
-        if(status === 'OK') stats[person].okCount++;
-        if(status === 'NDF') stats[person].ndfCount++;
-
-        diagonals.forEach(diagonal=>{
-          if(!stats[person].diagonals[diagonal]) stats[person].diagonals[diagonal] = { sum:0 };
-          stats[person].diagonals[diagonal].sum++;
+        const mapR = (r, insp) => ({
+            date: r[0] || "", 
+            serial: (r[2] || "").trim(), 
+            type: (r[3] || "").trim().toUpperCase(), 
+            status: r[4] || "",
+            name: r[5] || "", 
+            nameG: r[6] || "", 
+            ocAfterRepair: r[9] || "", 
+            comment: r[10] || "", 
+            inspector: insp
         });
-      });
-      return stats;
-    }
 
-    function calculateScrapWaitingStats(data){
-      const stats = {};
-      data.forEach(({serial, status, person})=>{
-        if(!person||!serial||!status) return;
-        const upperStatus = status.toUpperCase();
-        let type = (upperStatus.includes('SCRAP')) ? 'scrap' : (upperStatus.includes('WAITING')) ? 'waiting' : null;
-        if(!type) return;
-        const diagonals = getDiagonals(serial);
-        if(diagonals.length===0) return;
-        if(!stats[person]) stats[person]={};
-        diagonals.forEach(diagonal=>{
-          if(!stats[person][diagonal]) stats[person][diagonal]={scrap:0, waiting:0};
-          stats[person][diagonal][type]++;
+        combinedDataCache = [
+            ...(s1 ? s1.slice(1) : []).map(r => mapR(r, 'KOVALCHYK Y.')),
+            ...(s2 ? s2.slice(1) : []).map(r => mapR(r, 'ULANOVYCH.R')),
+            ...(s3 ? s3.slice(1) : []).map(r => mapR(r, 'ARCHIVE'))
+        ];
+        return true;
+    } catch (e) {
+        console.error("Buffer update failed:", e);
+        return false;
+    }
+}
+
+function parseDatePart(val) {
+    if (!val) return null;
+    const first = val.split(' ')[0].trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(first)) return new Date(first);
+    if (/^\d{2}\.\d{2}\.\d{4}$/.test(first)) {
+        const [d,m,y] = first.split('.');
+        return new Date(`${y}-${m}-${d}`);
+    }
+    const parsed = Date.parse(first);
+    return isNaN(parsed) ? null : new Date(parsed);
+}
+
+function getLastDate(data) {
+    const dates = data.map(r => parseDatePart(r.date)).filter(d => d instanceof Date && !isNaN(d));
+    return dates.length ? new Date(Math.max(...dates.map(d => d.getTime()))) : new Date();
+}
+
+const modal = document.getElementById('modal');
+const modalBody = document.getElementById('modal-body');
+const modalClose = document.getElementById('modal-close');
+
+if(modalClose) modalClose.onclick = () => modal.classList.remove('show');
+if(modal) modal.onclick = (e) => { if (e.target === modal) modal.classList.remove('show'); };
+
+const secretBtn = document.getElementById('secret-btn-kovalchyk');
+if(secretBtn) {
+    secretBtn.onclick = () => {
+        const dInfoText = document.getElementById('date-info').textContent;
+        const lastDateStr = dInfoText.includes(':') ? dInfoText.split(':')[1].trim() : "";
+        
+        const records = combinedDataCache.filter(r => 
+            r.inspector === 'KOVALCHYK Y.' && 
+            (r.date || '').split(' ')[0] === lastDateStr &&
+            ['OK','NDF','SCRAP TTL'].includes(r.status) &&
+            r.type !== 'MNT'
+        );
+
+        if (!records.length) return;
+
+        const textToCopy = records.map(r => r.serial).join('\n');
+        navigator.clipboard.writeText(textToCopy).then(() => {
+            const oldSymbol = secretBtn.textContent;
+            secretBtn.textContent = "✓";
+            setTimeout(() => secretBtn.textContent = oldSymbol, 1200);
         });
-      });
-      return stats;
-    }
+    };
+}
 
-    function renderTable(stats){
-      const container=document.getElementById('stats-container'); 
-      container.innerHTML='';
-      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
-      
-      let people=Object.keys(stats).sort((a,b)=>{
-        let sumA = stats[a].okCount + stats[a].ndfCount;
-        let sumB = stats[b].okCount + stats[b].ndfCount;
-        return sumB - sumA;
-      });
+const bulkSearchBtn = document.getElementById('bulk-search-btn');
+if(bulkSearchBtn) {
+    bulkSearchBtn.onclick = () => {
+        if(!modalBody || !modal) return;
+        modalBody.innerHTML = `
+            <h3 style="color:#0ff; margin-top:0;">Bulk Search</h3>
+            <textarea id="bulk-input" placeholder="Wklej SN (każdy w новой linii)"></textarea>
+            <button id="run-bulk-search">SZUKAJ</button>
+            <div id="bulk-result" style="margin-top:20px;"></div>
+        `;
+        modal.classList.add('show');
 
-      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych</p>'; return; }
+        document.getElementById('run-bulk-search').onclick = () => {
+            const snList = document.getElementById('bulk-input').value.split('\n').map(s => s.trim()).filter(s => s !== "");
+            if(!snList.length) return;
 
-      const table = document.createElement('table');
-      const header = `<thead><tr>
-                        <th>Name</th>
-                        ${diagonals.map(d=>`<th>${d}</th>`).join('')}
-                        <th class="total-col">Total (Sum / OK / NDF)</th>
-                        <th class="total-col">Dni</th>
-                      </tr></thead>`;
-      table.innerHTML = header;
+            const foundMatches = [];
+            const notFound = [];
 
-      const tbody = document.createElement('tbody');
-      people.forEach(person=>{
-        const tr = document.createElement('tr');
-        tr.className = 'person-row';
-        tr.onclick = () => toggleDetails(tr, person);
+            snList.forEach(sn => {
+                const matches = combinedDataCache.filter(r => (r.serial || '').trim() === sn);
+                if(matches.length) {
+                    matches.sort((a,b) => (parseDatePart(b.date) || 0) - (parseDatePart(a.date) || 0));
+                    foundMatches.push(matches[0]);
+                } else {
+                    notFound.push({ serial: sn, date: '---', status: 'NOT FOUND', name: '---', comment: '' });
+                }
+            });
 
-        const pData = stats[person];
-        const rowTotal = pData.okCount + pData.ndfCount;
+            const workerCounts = {};
+            foundMatches.forEach(m => {
+                const wName = m.name || 'UNKNOWN';
+                workerCounts[wName] = (workerCounts[wName] || 0) + 1;
+            });
 
-        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-                       diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
-                       `<td class="total-col">
-                          <div class="total-split">
-                            <span class="total-sum">${rowTotal}</span>
-                            <span class="sep">/</span>
-                            <span class="t-ok">${pData.okCount}</span>
-                            <span class="sep">/</span>
-                            <span class="t-ndf">${pData.ndfCount}</span>
-                          </div>
-                        </td>` +
-                       `<td class="total-col">${pData.days.size}</td>`;
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
+            foundMatches.sort((a, b) => {
+                const countA = workerCounts[a.name || 'UNKNOWN'];
+                const countB = workerCounts[b.name || 'UNKNOWN'];
+                return countB !== countA ? countB - countA : (a.name || '').localeCompare(b.name || '');
+            });
 
-    function toggleDetails(row, personName) {
-      if(row.nextSibling && row.nextSibling.classList.contains('detail-row')){
-        row.nextSibling.remove();
-        return;
-      }
-      const details = lastFilteredData.filter(d => d.person === personName);
-      const detailRow = document.createElement('tr');
-      detailRow.className = 'detail-row';
-      let rowsHtml = details.map(d => {
-        let statusClass = "st-ok";
-        let rowBg = "transparent";
-        const s = d.status.toUpperCase();
-        if (s.includes('SCRAP')) { statusClass = "st-scrap"; rowBg = "rgba(255, 0, 0, 0.2)"; } 
-        else if (s.includes('WAITING')) { statusClass = "st-waiting"; rowBg = "rgba(255, 255, 0, 0.1)"; } 
-        else if (s.includes('NDF')) { statusClass = "st-ndf"; rowBg = "rgba(255, 105, 180, 0.2)"; }
-        return `<tr style="background-color: ${rowBg};">
-                  <td class="${statusClass}">${d.serial}</td>
-                  <td class="${statusClass}">${d.status}</td>
-                  <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
-                  <td class="${statusClass}">${d.statusH}</td>
-                  <td class="${statusClass}">${d.matrixStatus}</td>
-                  <td class="${statusClass}">${d.description}</td>
+            let resHtml = `<table><tr><th>Serial</th><th>Data</th><th>Status</th><th>Naprawiacz</th><th>Info</th></tr>`;
+            [...foundMatches, ...notFound].forEach(r => {
+                const style = r.status === 'NOT FOUND' ? 'style="color:#ff5555"' : '';
+                resHtml += `<tr ${style}>
+                    <td>${r.serial}</td><td>${r.date}</td><td>${r.status}</td><td>${r.name}</td><td>${r.comment}</td>
                 </tr>`;
-      }).join('');
-      detailRow.innerHTML = `<td colspan="100%"><table class="detail-table"><thead><tr><th>Serial</th><th>Status</th><th>FINALNA</th><th>H Status</th><th>New / NP</th><th>Info / Description</th></tr></thead><tbody>${rowsHtml}</tbody></table></td>`;
-      row.after(detailRow);
-    }
+            });
+            document.getElementById('bulk-result').innerHTML = resHtml + `</table>`;
+        };
+    };
+}
 
-    function renderScrapWaitingTable(stats){
-      const container = document.getElementById('scrap-waiting-container');
-      container.innerHTML = '';
-      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
-      if(diagonals.length === 0) {
-          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych</p>';
-          return;
-      }
-      const table = document.createElement('table');
-      table.innerHTML = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}</tr></thead>`;
-      const tbody = document.createElement('tbody');
-      Object.keys(stats).forEach(person => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-          diagonals.map(d => {
-            if(stats[person][d]) {
-              return `<td><div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div></td>`;
-            }
-            return '<td>-</td>';
-          }).join('');
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
+function openModal(name) {
+    const dInfoText = document.getElementById('date-info').textContent;
+    const lastDateStr = dInfoText.includes(':') ? dInfoText.split(':')[1].trim() : "";
+    const records = combinedDataCache.filter(r => r.name === name && (r.date || '').split(' ')[0] === lastDateStr);
 
-    document.getElementById('update-btn').addEventListener('click', () => {
-        clearInterval(countdownTimer);
-        update();
+    if (!records.length) {
+        modalBody.innerHTML = "<p>Brak danych</p>";
+    } else {
+        let html = '<table><tr><th>Serial</th><th>Type</th><th>Status</th><th>OC</th><th>COMMENT</th></tr>';
+        records.forEach(r => {
+            html += `<tr><td>${r.serial || '--'}</td><td>${r.type || '--'}</td><td>${r.status || '--'}</td><td>${r.ocAfterRepair || '--'}</td><td>${r.comment || '--'}</td></tr>`;
+        });
+        modalBody.innerHTML = html + '</table>';
+    }
+    modal.classList.add('show');
+}
+
+function displayCombinedStats(filtered) {
+    const stats = {};
+    let tNDF=0, tOK=0, tWAIT=0, tTTL=0, tPNLA=0, gTotal=0;
+    filtered.forEach(r => {
+        const n = r.name || 'UNKNOWN';
+        if (!stats[n]) stats[n] = { NDF:0, OK:0, WAITING:0, 'SCRAP TTL':0, 'SCRAP PNLA':0, total:0 };
+        if (r.status === "NDF") { stats[n].NDF++; tNDF++; }
+        if (r.status === "OK") { stats[n].OK++; tOK++; }
+        if (r.status === "WAITING") { stats[n].WAITING++; tWAIT++; }
+        if (r.status === "SCRAP TTL") { stats[n]["SCRAP TTL"]++; tTTL++; }
+        if (r.status === "SCRAP PNLA") { stats[n]["SCRAP PNLA"]++; tPNLA++; }
+        stats[n].total++; gTotal++;
     });
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    document.getElementById('date-from').value = todayStr;
-    document.getElementById('date-to').value = todayStr;
-    update();
-  </script>
+    const tbody = document.querySelector('#combined-table tbody');
+    tbody.innerHTML = "";
+    Object.keys(stats).sort().forEach(name => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td onclick="openModal('${name}')">${name}</td><td>${stats[name].NDF}</td><td>${stats[name].OK}</td><td>${stats[name].WAITING}</td><td>${stats[name]['SCRAP TTL']}</td><td>${stats[name]['SCRAP PNLA']}</td><td class="sum-col">${stats[name].total}</td>`;
+        tbody.appendChild(row);
+    });
+    const tr = document.createElement('tr'); tr.className = "total-row";
+    tr.innerHTML = `<td>TOTAL</td><td>${tNDF}</td><td>${tOK}</td><td>${tWAIT}</td><td>${tTTL}</td><td>${tPNLA}</td><td class="sum-col">${gTotal}</td>`;
+    tbody.appendChild(tr);
+}
+
+function displayDiagonalStats(filtered) {
+    const diagStats = {};
+    filtered.forEach(({name, serial, status}) => {
+        if (status !== "OK" && status !== "NDF") return;
+        const diag = extractDiagonal(serial); if (!diag) return;
+        const nm = name || 'UNKNOWN';
+        if (!diagStats[nm]) diagStats[nm] = {};
+        diagStats[nm][diag] = (diagStats[nm][diag] || 0) + 1;
+    });
+    const tbody = document.querySelector('#diag-table tbody');
+    const thead = document.querySelector('#diag-table thead');
+    const allDiagonals = [...new Set(Object.values(diagStats).flatMap(o => Object.keys(o)))].map(Number).sort((a,b)=>a-b);
+    thead.innerHTML = `<tr><th>NAME</th>${allDiagonals.map(d => `<th>${d}</th>`).join('')}<th class="sum-col">SUMA</th></tr>`;
+    tbody.innerHTML = '';
+    Object.entries(diagStats).sort().forEach(([name, diags]) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `<td>${name}</td>` + allDiagonals.map(d => `<td>${diags[d]||0}</td>`).join('') + `<td class="sum-col">${Object.values(diags).reduce((a,b)=>a+b,0)}</td>`;
+        tbody.appendChild(row);
+    });
+}
+
+document.getElementById('search').onkeypress = async e => {
+    if (e.key === 'Enter') {
+        const serial = e.target.value.trim();
+        const output = document.getElementById('search-result');
+        const matches = combinedDataCache.filter(r => (r.serial || '').trim() === serial).sort((a,b) => (parseDatePart(b.date)||0) - (parseDatePart(a.date)||0));
+        if (matches.length) {
+            output.innerHTML = `<table><thead><tr><th>Data</th><th>Status</th><th>NAPRAWIACZ</th><th>FINALNA</th><th>INFO</th></tr></thead>
+            <tbody>${matches.map((d, i) => `<tr ${i===0?'class="latest-record"':''}><td>${d.date}</td><td>${d.status}</td><td>${d.name}</td><td>${d.nameG}</td><td>${d.comment}</td></tr>`).join('')}</tbody></table>`;
+        } else { output.innerHTML = "<p style='color:yellow'>Brak info!</p>"; }
+    }
+};
+
+async function updateStats() {
+    if (await fetchAndCacheData()) {
+        const lastDate = getLastDate(combinedDataCache);
+        const lastDateStr = lastDate.toISOString().split('T')[0];
+        document.getElementById('date-info').textContent = `DATE: ${lastDateStr}`;
+        const filtered = combinedDataCache.filter(r => (r.date || '').split(' ')[0] === lastDateStr);
+        displayCombinedStats(filtered);
+        displayDiagonalStats(filtered);
+    }
+}
+
+document.getElementById('overview-toggle').onclick = () => { const b = document.getElementById('overview-block'); b.style.display = b.style.display==='none'?'block':'none' };
+document.getElementById('diag-toggle').onclick = () => { const b = document.getElementById('diag-block'); b.style.display = b.style.display==='none'?'block':'none' };
+
+updateStats();
+setInterval(updateStats, 60000);
+
+const backgrounds = [
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-carlos-oliva-1966452-3586966.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-eberhardgross-1367192.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-eberhardgross-640781.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-francesco-ungaro-1526713.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-gochrisgoxyz-1643409.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-iriser-1366957.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-joshkjack-135018.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-pixabay-326055.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-rickyrecap-2627063.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-rpnickson-2478248.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-sanaan-3075993.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-simon73-1183099.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-pengwhan-1767434.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-harry-shum-17627821-15984177.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-am83-12709111.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-njeromin-12766489.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-pixabay-533923.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-robshumski-1903702.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-elti-meshau-107925-333850.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-harun-tan-2311991-3980364.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-joyston-judah-331625-933054.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-francesco-ungaro-464336.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-pixabay-35857.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-jahoo-388415.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-therato-1933320.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-quang-nguyen-vinh-222549-2166711.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-thanhhoa-tran-640546-1462892.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-jplenio-3131634.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-quang-nguyen-vinh-222549-2563129.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-david-bartus-43782-2379653.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-dreamypixel-547114.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-sebastiaan9977-1097456.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-souvenirpixels-1519088.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-stywo-1261731.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-thatguycraig000-1563355.jpg",
+"https://raw.githubusercontent.com/iDLC1990/status-dashboard/main/pexels-thatguycraig000-1563356.jpg"
+];
+let bgIndex = 0;
+setInterval(() => {
+    bgIndex = (bgIndex + 1) % backgrounds.length;
+    document.body.style.background = `url('${backgrounds[bgIndex]}') no-repeat center center fixed`;
+    document.body.style.backgroundSize = "cover";
+}, 180000);
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW Registered!', reg))
+      .catch(err => console.log('SW Error:', err));
+  });
+}
+</script>
 </body>
 </html>
