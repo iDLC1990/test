@@ -442,7 +442,7 @@ if(bulkSearchBtn) {
         if(!modalBody || !modal) return;
         modalBody.innerHTML = `
             <h3 style="color:#0ff; margin-top:0;">Bulk Search</h3>
-            <textarea id="bulk-input" placeholder="Wklej SN (każdy w новой linii)"></textarea>
+            <textarea id="bulk-input" placeholder="Wklej SN "></textarea>
             <button id="run-bulk-search">SZUKAJ</button>
             <div id="bulk-result" style="margin-top:20px;"></div>
         `;
@@ -461,7 +461,7 @@ if(bulkSearchBtn) {
                     matches.sort((a,b) => (parseDatePart(b.date) || 0) - (parseDatePart(a.date) || 0));
                     foundMatches.push(matches[0]);
                 } else {
-                    notFound.push({ serial: sn, date: '---', status: 'NOT FOUND', name: '---', comment: '' });
+                    notFound.push({ serial: sn, date: '---', status: ' ', name: '---', comment: '' });
                 }
             });
 
@@ -625,7 +625,7 @@ setInterval(() => {
     document.body.style.background = `url('${backgrounds[bgIndex]}') no-repeat center center fixed`;
     document.body.style.backgroundSize = "cover";
 }, 180000);
-// ГОРЯЧИЕ КЛАВИШИ Alt+1 и Alt+2
+// ГОРЯЧИЕ КЛАВИШИ 
 window.addEventListener('keydown', (e) => {
     if (e.altKey && (e.key === '1' || e.code === 'Digit1')) {
         e.preventDefault();
