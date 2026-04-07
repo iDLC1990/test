@@ -1,351 +1,455 @@
 <!DOCTYPE html>
-<html lang="pl">
+<html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA  2026</title>
-  <style>
-    body {
-      background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
-      background-size: cover;
-      color: #fff;
-      font-family: Arial, sans-serif;
-      margin: 0;
-    }
-    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.6); flex-wrap: wrap; border-bottom: 2px solid #00cccc; }
-    .header h1 { margin: 0; color: #00cccc; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
-    .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
-    .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
-    input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>L2 RB Map - Live Tracking</title>
     
-    #auto-timer { color: #00ffea; font-size: 14px; font-family: monospace; min-width: 180px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; }
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-    #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-    th, td { border: 1px solid #333; padding: 12px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
-    th { background-color: #1a1a1a; color: #00cccc; font-weight: bold; position: sticky; top: 0; z-index: 2; }
-    
-    .person-row { cursor: pointer; transition: background 0.2s; }
-    .person-row:hover { background-color: rgba(0, 204, 204, 0.15); }
-    td.name-cell { background-color: #1a1a1a; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; border-right: 2px solid #00cccc; }
+    <style>
+        body { 
+            margin: 0; padding: 0; background: #050505; color: #eee; 
+            font-family: 'Segoe UI', sans-serif; overflow: hidden; 
+            touch-action: none; user-select: none; -webkit-user-select: none;
+        }
+        #viewport { width: 100vw; height: 100vh; cursor: grab; overflow: hidden; position: relative; background: #000; }
+        #map-wrapper { position: absolute; transform-origin: 0 0; width: 5062px; height: 4210px; background-repeat: no-repeat; background-size: 100% 100%; will-change: transform; }
 
-    th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
-    
-    /* Стили для нового отображения Total (12 / 10 / 2) */
-    .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
-    .total-sum { font-weight: bold; color: #ffffff; }
-    .t-ok { color: #00ffea; }
-    .t-ndf { color: #ff69b4; }
-    .sep { color: #666; font-weight: normal; }
+        .rb-marker {
+            position: absolute; width: 18px; height: 18px;
+            background: rgba(255, 255, 255, 0.4); border: 2px solid #333;
+            border-radius: 50%; transform: translate(-50%, -50%); z-index: 10; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.8); display: block !important; touch-action: none;
+        }
+        
+        .rb-marker.is-alive { 
+            background: radial-gradient(circle, #ff4400 0%, #880000 100%) !important; 
+            border-color: #fff !important; box-shadow: 0 0 20px rgba(255, 50, 0, 1) !important; 
+            width: 22px; height: 22px; z-index: 15;
+        }
 
-    .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
-    .detail-table { width: 100%; border: 1px solid #444; }
-    .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
-    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border-bottom: 1px solid #222; }
+        .rb-marker.dragging { opacity: 0.7; scale: 2.5; z-index: 1000; cursor: grabbing; border-color: #0f0 !important; box-shadow: 0 0 30px #0f0 !important; }
 
-    .st-ndf { color: #ff69b4 !important; font-weight: bold; }
-    .st-scrap { color: #ff4444 !important; font-weight: bold; }
-    .st-waiting { color: #ffff00 !important; font-weight: bold; }
-    .st-ok { color: #ffffff; } 
+        .rb-marker::after {
+            content: attr(data-name); position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.8); color: #fff; padding: 2px 8px; border-radius: 4px; 
+            font-size: 12px; white-space: nowrap; border: 1px solid #444; pointer-events: none;
+        }
 
-    .cell-split { display: flex; justify-content: space-around; gap: 10px; }
-    .scrap { color: #ff4444; font-weight: bold; }
-    .waiting { color: #ffff00; font-weight: bold; }
-    
-    details { width: 95%; margin: 10px auto; background: rgba(0,0,0,0.5); border-radius: 8px; }
-    summary { cursor: pointer; font-size: 18px; color: #00cccc; padding: 15px; font-weight: bold; outline: none; }
-    summary:hover { color: #fff; }
-  </style>
+        .rb-timer-map {
+            position: absolute; top: 25px; left: 50%; transform: translateX(-50%);
+            background: #000; color: #00ffcc; padding: 4px 10px; border-radius: 6px;
+            font-weight: bold; font-family: 'Courier New', monospace; 
+            font-size: 18px; border: 2px solid #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.7); z-index: 100; pointer-events: none;
+        }
+
+        .special-marker { background: #ffd700 !important; border: 2px solid #fff !important; animation: pulse 1.5s infinite; z-index: 25; }
+        @keyframes pulse { 0% { scale: 1; } 50% { scale: 1.3; } 100% { scale: 1; } }
+
+        #sidebar {
+            position: fixed; top: 15px; left: 15px; width: 290px;
+            background: rgba(10, 10, 10, 0.95); border: 1px solid #333;
+            padding: 15px; z-index: 1000; border-radius: 15px; backdrop-filter: blur(10px);
+        }
+        #monitor-list { margin-top: 15px; max-height: 60vh; overflow-y: auto; }
+        .monitor-item {
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px; padding: 10px; border-bottom: 1px solid #222; cursor: pointer;
+        }
+        .monitor-item:hover { background: rgba(255,255,255,0.1); }
+        .rb-note-text { display: block; font-size: 10px; color: #888; font-weight: normal; margin-top: 2px; }
+        
+        .ready-text { color: #ff3300; font-weight: bold; text-shadow: 0 0 5px rgba(255,51,0,0.5); }
+        .timer-active-text { color: #00ffcc; font-weight: bold; }
+
+        .time-container { display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 10px; }
+        #game-time { font-size:36px; color:#ffd700; font-family:monospace; margin-right: 10px; }
+        
+        .faq-btn { 
+            width: 30px; height: 30px; border-radius: 50%; background: #222; color: #ffd700; 
+            border: 1px solid #ffd700; cursor: pointer; font-weight: bold; font-size: 18px;
+            display: flex; align-items: center; justify-content: center; transition: 0.3s;
+        }
+        .faq-btn:hover { background: #ffd700; color: #000; }
+
+        .btn { width:100%; padding:10px; border-radius:8px; font-weight:bold; margin-bottom:5px; cursor:pointer; border: none; }
+        .btn-editor { background:#222; color:#0f0; border: 1px solid #050; }
+        .btn-editor.active { background:#050; color:#fff; box-shadow: 0 0 15px #0f0; }
+        .btn-add { background:#004488; color:#fff; border: 1px solid #0066cc; display: none; }
+        .btn-reset { background: #441111; color: #ff6666; border: 1px solid #662222; margin-top: 5px; }
+
+        #faq-overlay {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.9); z-index: 5000; display: none;
+            align-items: center; justify-content: center; backdrop-filter: blur(8px);
+        }
+        .faq-content {
+            background: #111; border: 2px solid #ffd700; padding: 25px;
+            border-radius: 15px; max-width: 400px; width: 85%;
+        }
+        .faq-content h2 { color: #ffd700; margin-top: 0; text-align: center; }
+        .faq-content ul { padding-left: 20px; color: #ccc; line-height: 1.6; }
+        .faq-content li { margin-bottom: 12px; }
+        .close-faq { background: #ffd700; color: #000; padding: 12px; width: 100%; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+
+        #minimap-overlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 90vw; max-width: 700px; background: #000; border: 3px solid #ffd700;
+            z-index: 3000; display: none; border-radius: 10px; overflow: hidden;
+        }
+        #minimap-overlay img { width: 100%; display: block; }
+    </style>
 </head>
 <body>
-  <div class="header">
-    <h1>LCDR LIVE DATA 2026</h1>
-    <div class="controls">
-      <label class="date-info">Od:</label>
-      <input type="date" id="date-from"/>
-      <label class="date-info">Do:</label>
-      <input type="date" id="date-to"/>
-      <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
-      <div id="auto-timer">Auto refresh in: --:--</div>
+
+<div id="faq-overlay">
+    <div class="faq-content">
+        <h2>ИНСТРУКЦИЯ</h2>
+        <ul>
+            <li><b>Двойной клик по метке:</b> Отметить смерть РБ. Запустится таймер на 15 минут.</li>
+            <li><b>Одиночный клик:</b> Центрировать карту на выбранном боссе.</li>
+            <li><b>Список слева:</b> Сверху те, кто скоро респаунится. Снизу — те, кто уже живы (READY).</li>
+            <li><b>Золотая метка:</b> Секретная кнопка для просмотра карты телепортов.</li>
+            <li><b>Сброс таймеров:</b> Убирает все READY статусы из списка.</li>
+        </ul>
+        <button class="close-faq" onclick="toggleFAQ(false)">ПОНЯТНО</button>
     </div>
-  </div>
+</div>
 
-  <div id="stats-container"></div>
+<div id="minimap-overlay" onclick="this.style.display='none'"><img src="https://github.com/iDLC1990/FarmRB/blob/main/34.jpg?raw=true"></div>
 
-  <details id="scrap-waiting-table">
-    <summary>📊 Scrap / Waiting Statistics</summary>
-    <div id="scrap-waiting-container"></div>
-  </details>
+<div id="sidebar">
+    <div class="time-container">
+        <div id="game-time">00:00</div>
+        <button class="faq-btn" onclick="toggleFAQ(true)">?</button>
+    </div>
+    <button onclick="toggleEditor()" id="editor-btn" class="btn btn-editor">РЕДАКТОР: ВЫКЛ</button>
+    <button onclick="startAddingBoss()" id="add-boss-btn" class="btn btn-add">+ ДОБАВИТЬ РБ</button>
+    <button onclick="resetTimers()" class="btn btn-reset">СБРОСИТЬ ТАЙМЕРЫ</button>
+    <div id="monitor-list"></div>
+</div>
 
-  <script>
-    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
-    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
-    const validStatuses = ['OK', 'NDF'];
+<div id="viewport"><div id="map-wrapper"></div></div>
 
-    let refreshInterval = 30; 
-    let countdown = refreshInterval;
-    let countdownTimer;
-    let lastFilteredData = []; 
-
-    function startCountdown() {
-      clearInterval(countdownTimer);
-      countdown = refreshInterval;
-      countdownTimer = setInterval(() => {
-        countdown--;
-        const mins = Math.floor(countdown / 60);
-        const secs = String(countdown % 60).padStart(2, '0');
-        document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
-        if (countdown <= 0) {
-          clearInterval(countdownTimer);
-          update(); 
-        }
-      }, 1000);
-    }
-
-    const diagonalMapPrefix = { 'WH8':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
-    const diagonalMap = {
-      '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
-      '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
-      '438':43,'435':43,'430':43,'428':43,'425':43,'420':43,
-      '418':43,'415':43,'398':43,'395':43,'390':43,
-      '348':32,'345':32,'340':32,'328':32,'325':32,'320':32,
-      '318':32,'315':32,'278':27,'275':27,'270':27,
-      '248':24,'245':24,'240':24,'238':24,'235':24,'230':24
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB0b73t1ztVYKqZ_Vl8LH8EF2SpaQsBMHc",
+        projectId: "l2-rb-map",
+        databaseURL: "https://l2-rb-map-default-rtdb.europe-west1.firebasedatabase.app",
     };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const rbRef = db.ref('bosses');
 
-    function getDiagonals(serial){
-      if(!serial || serial.length<6) return [];
-      const upper = serial.toUpperCase();
-      const result = new Set();
-      const match = upper.match(/^[A-Z]{3}(\d{3})/);
-      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
-      const prefix = upper.slice(0,3);
-      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
-      return [...result];
+    const SPAWN_WINDOW = 15 * 60; 
+    let isEditorMode = false;
+    let isAddingMode = false;
+    let draggedBossId = null;
+
+    let bossData = [
+        { id: "Abyss_Brukunt", name: "Abyss Brukunt", note: "ll_woatab 2tab", pos: "top:2721px;left:4385px;" },
+        { id: "Demon_Kurikups", name: "Demon Kurikups", note: "dd_sumtoi kirikups", pos: "top:3725px;left:3430px;" },
+        { id: "Ghost_of_the_Lidia", name: "Ghost of the Lidia", note: "ll_woatab center", pos: "top:1906px;left:4528px;" },
+        { id: "Fierce_Tiger_King_Angel", name: "Fierce Tiger King Angel", note: "ll_woatab 1tab", pos: "top:2713px;left:4517px;" },
+        { id: "Shilen_Priest_Hisilrome", name: "Shilen's Priest Hisilrome", note: "ll_woatab 3tab", pos: "top:2279px;left:4503px;" },
+        { id: "Rahha", name: "Rahha", note: "pp_woawarka KETP", pos: "top:1981px;left:4047px;" },
+        { id: "Enmity_Ghost_Ramdal", name: "Enmity Ghost Ramdal", note: "dd_sumtoi 1pl", pos: "top:2128px;left:3955px;" },
+        { id: "Gargoyle_Lord_Tiphon", name: "Gargoyle Lord Tiphon", note: "ww_ulanworktk tripon", pos: "top:1853px;left:4509px;" },
+        { id: "Demons_Agent_Falston", name: "Demons Agent Falston", note: "ll_woatab 5tab", pos: "top:1460px;left:3819px;" },
+        { id: "Kernon_Faithful_Kelone", name: "Kernon's Faithful Kelone", note: "th_ostrov bswerx", pos: "top:1838px;left:4284px;" },
+        { id: "Spirit_of_Andras", name: "Spirit of Andras", note: "ww_ulanworktk androna", pos: "top:1851px;left:4661px;" },
+        { id: "Anakim_Nemesis_Zakaron", name: "Anakim's Nemesis Zakaron", note: "kk_port1 ssakaron", pos: "top:2750px;left:4256px;" },
+        { id: "Barakiel", name: "Flame of Splendor Barakiel", note: "ll_woatab finisrb", pos: "top:1376px;left:3793px;" },
+        { id: "Korim", name: "Korim", note: "ww_ulanworktk ibobo", pos: "top:2259px;left:3958px;" },
+        { id: "Queen_Themis", name: "Palibati Queen Themis", note: "ww_ulanworktk paibatis", pos: "top:2226px;left:4712px;" },
+        { id: "Cabrio", name: "Shilen's Messenger Cabrio", note: "kk_port1 sabrio", pos: "top:2145px;left:4614px;" },
+        { id: "Savior_Mardil", name: "Immortal Savior Mardil", note: "dd_sumtoi 4pl", pos: "top:2216px;left:3954px;" },
+        { id: "Tanatos", name: "Doom Blade Tanatos", note: "pp_woawarka KBOX", pos: "top:1953px;left:4150px;" },
+        { id: "Sheshark", name: "Water Dragon Seer Sheshark", note: "th_ostrov ostrov2", pos: "top:3295px;left:3959px;" },
+        { id: "Hallate", name: "Death Lord Hallate", note: "dd_sumtoi 2pl", pos: "top:2175px;left:3959px;" },
+        { id: "Behemoth", name: "Beast Lord Behemoth", note: "LL_ULANX500 PIhIMOT", pos: "top:1870px;left:4098px;" },
+        { id: "Meanas_Anor", name: "Meanas Anor", note: "pp_woawarka wbox", pos: "top:1992px;left:4402px;" },
+        { id: "Skylancer", name: "Roaring Skylancer", note: "pp_woawarka lancer", pos: "top:2527px;left:4165px;" },
+        { id: "Hellmann", name: "Eilhalder von Hellmann", note: "th_ostrov fodvil", pos: "top:1729px;left:3504px;" },
+        { id: "Kandra", name: "Vanor Chief Kandra", note: "kk_port1 kandraa", pos: "top:1565px;left:4027px;" },
+        { id: "Lokness", name: "Fafurion'Herald Lokness", note: "th_ostrov ostrov1", pos: "top:3295px;left:3910px;" },
+        { id: "Sobekk", name: "Krokian Padisha Sobekk", note: "th_ostrov ostrov3", pos: "top:3291px;left:4064px;" },
+        { id: "Decarbia", name: "Bloody Empress Decarbia", note: "LL_ULANX500 kobria", pos: "top:2161px;left:4690px;" },
+        { id: "Ipos", name: "Death Lord Ipos", note: "LL_ULANX500 IBOS", pos: "top:1949px;left:4379px;" },
+        { id: "Shax", name: "Death Lord Shax", note: "kk_port1 sky4len", pos: "top:1997px;left:4512px;" },
+        { id: "Kernon", name: "Kernon", note: "dd_sumtoi 8pl", pos: "top:2129px;left:4074px;" },
+        { id: "Olkuth", name: "Lesser Giant Olkuth", note: "LL_ULANX500 PLOVER", pos: "top:2405px;left:4679px;" },
+        { id: "Naga", name: "Storm Winged Naga", note: "th_ostrov bsnaga", pos: "top:1894px;left:4227px;" },
+        { id: "Palatanos", name: "Palatanos of Horrific Power", note: "pp_woawarka PALATAN5", pos: "top:1906px;left:4305px;" },
+        { id: "Flamestone_Giant", name: "Flamestone Giant", note: "pp_woawarka WATP", pos: "top:2014px;left:4287px;" },
+        { id: "Ashakiel", name: "Ocean Flame Ashakiel", note: "th_ostrov ostrov4", pos: "top:3264px;left:4100px;" },
+        { id: "Hestia", name: "Hestia", note: "kk_port1 hestia", pos: "top:1152px;left:4191px;" },
+        { id: "Shuriel", name: "Fire of Wrath Shuriel", note: "dd_sumtoi 10pl", pos: "top:2174px;left:4076px;" },
+        { id: "Golkonda", name: "Longhorn Golkonda", note: "ww_ulanworktk halgonda", pos: "top:2216px;left:4078px;" },
+        { id: "Galaxia", name: "Cherub Galaxia", note: "dd_sumtoi 13pl", pos: "top:2261px;left:4084px;" },
+        { id: "Shadith", name: "Varka's Hero Shadith", note: "pp_woawarka iiiadit", pos: "top:1750px;left:4017px;" },
+        { id: "Mos", name: "Varka's Commander Mos", note: "LL_ULANX500 5ALI", pos: "top:1770px;left:3960px;" },
+        { id: "Ember", name: "Ember", note: "ww_ulanworktk bember", pos: "top:1173px;left:4720px;" },
+        { id: "Uruka", name: "Uruka", note: "ww_ulanworktk urkahan", pos: "top:1990px;left:3002px;" },
+        { id: "Ashutar", name: "Soul of Water Ashutar", note: "kk_port1 wwarka", pos: "top:1765px;left:3911px;" },
+        { id: "Nastron", name: "Soul of Fire Nastron", note: "kk_port1 kketra", pos: "top:1411px;left:4266px;" },
+        { id: "Horus", name: "Varka's Chief Horus", note: "LL_ULANX500 4ALI", pos: "top:1721px;left:3923px;" },
+        { id: "Halter", name: "Andreas van Halter", note: "LL_ULANX500 PAGANKA", pos: "top:1640px;left:3222px;" },
+        { id: "Plague_Golem", name: "Plague Golem", note: "ll_woatab 4tab", pos: "top:1584px;left:4509px;" },
+        { id: "MILENU", name: "MILENU", note: "GM_RUSMAG FSO", pos: "top:3972px;left:3737px;" },
+        { id: "Brakki", name: "Ketra's Chief Brakki", note: "kk_port1 kketra", pos: "top:1385px;left:4289px;" },
+        { id: "Tayr", name: "Ketra's Commander Tayr", note: "kk_port1 kketra", pos: "top:1421px;left:4298px;" },
+        { id: "Hekaton", name: "Ketra's Hero Hekaton", note: "Ketra Hekaton", pos: "top:1477px;left:4316px;" },
+        { id: "Queen_Shyeed", name: "Queen Shyeed", note: "Queen Shyeed", pos: "top:1714px;left:3813px;" },
+        { id: "Anays", name: "Lord of Splendor Anays", note: "Anays", pos: "top:1402px;left:4036px;" },
+        { id: "Sailren", name: "Sailren", note: "Sailren", pos: "top:1956px;left:3236px;" },
+        { id: "Daimon", name: "Daimon the White-Eyes", note: "Daimon", pos: "top:1717px;left:4660px;" },
+        { id: "Glaki", name: "Last Lesser Giant Glaki", note: "Glaki", pos: "top:2492px;left:4526px;" },
+        { id: "Bumbalump", name: "Icicle Emperor Bumbalump", note: "Bumbalump", pos: "top:1103px;left:4403px;" },
+        { id: "Gorgolos", name: "Gorgolos", note: "GM_RUSMAG BATAT", pos: "top:2542px;left:4659px;" },
+        { id: "Kastor", name: "Roaring Lord Kastor", note: "Kastor", pos: "top:2035px;left:3921px;" },
+        { id: "Hekaton_Prime", name: "Hekaton Prime", note: "GM_RUSMAG BATAT", pos: "top:2606px;left:4688px;" },
+        { id: "Isabella", name: "Isabella", note: "newly added", pos: "top:2627px;left:2408px;" },
+        { id: "Royal_Sharpshooter", name: "Royal Sharpshooter", note: "newly added", pos: "top:2638px;left:3712px;" },
+        { id: "Enchanced_Mimir", name: "Enchanced Mimir", note: "newly added", pos: "top:2937px;left:4001px;" },
+        { id: "Abyssal_Makkum", name: "Abyssal Makkum", note: "newly added", pos: "top:2567px;left:3804px;" },
+        { id: "Gordon", name: "gordon", note: "newly added", pos: "top:1577px;left:4400px;" },
+        { id: "Typhoon", name: "Typhoon", note: "newly added", pos: "top:4008px;left:2830px;" }
+    ];
+
+    const wrapper = document.getElementById('map-wrapper');
+    const viewport = document.getElementById('viewport');
+    let scale = window.innerWidth / 5062;
+    let posX = 0, posY = 0;
+
+    function init() {
+        wrapper.style.backgroundImage = `url('https://github.com/iDLC1990/FarmRB/blob/main/map.gif?raw=true')`;
+        addSpecialMarker();
+        listenFirebase(); 
+        setInterval(tick, 1000);
+        setInterval(updateGameTime, 1000);
+        update();
     }
 
-    async function getData(sheetName){
-      try{
-        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}&t=${new Date().getTime()}`);
-        const data = await response.json();
-        return data.values || [];
-      }catch(err){ 
-        console.error("Fetch error:", err);
-        return []; 
-      }
+    function toggleFAQ(show) {
+        document.getElementById('faq-overlay').style.display = show ? 'flex' : 'none';
     }
 
-    async function fetchData(){
-      const sheetNames = ['FI Station KOVALCHYK Y.','FI Station 2 ULANOVYCH.R'];
-      let combined = [];
-      for(const name of sheetNames){
-        const sheetData = await getData(name);
-        if(sheetData.length<2) continue;
-        const rows = sheetData.slice(1);
-        const mapped = rows.map(row=>({
-          date: row[0]||'',
-          serial: row[2]||'',
-          status: (row[4]||'').toUpperCase(),
-          finalna: row[6]||'',
-          person: row[5]||'',
-          statusH: row[7]||'',
-          matrixStatus: row[9]||'',
-          description: row[10]||''
-        }));
-        combined = combined.concat(mapped);
-      }
-      return combined;
+    function addSpecialMarker() {
+        const sm = document.createElement('div');
+        sm.className = 'rb-marker special-marker';
+        sm.style.top = "2970px"; sm.style.left = "4322px";
+        sm.setAttribute('data-name', 'TELEPORT MAP');
+        sm.onclick = (e) => { e.stopPropagation(); document.getElementById('minimap-overlay').style.display = 'block'; };
+        wrapper.appendChild(sm);
     }
 
-    async function update(){
-      const btn = document.getElementById('update-btn');
-      const timerLabel = document.getElementById('auto-timer');
-      btn.style.backgroundColor = "#555";
-      btn.textContent = " ";
-      timerLabel.textContent = " ";
+    function createMarker(boss) {
+        if (!boss || !boss.id || !boss.pos || document.getElementById('rb-' + boss.id)) return;
 
-      const dateFrom = document.getElementById('date-from').value;
-      const dateTo = document.getElementById('date-to').value;
-      
-      if(!dateFrom || !dateTo) { 
-        btn.textContent = "Aktualizuj";
-        btn.style.backgroundColor = "#008080";
-        startCountdown(); 
-        return; 
-      }
+        let m = document.createElement('div');
+        m.id = 'rb-' + boss.id;
+        m.className = 'rb-marker';
+        const p = boss.pos.split(';');
+        m.style.top = p[0].split(':')[1];
+        m.style.left = p[1].split(':')[1];
+        m.setAttribute('data-name', boss.name);
+        
+        let lastClick = 0;
+        m.addEventListener('pointerdown', (e) => {
+            if (isEditorMode) {
+                e.stopPropagation(); draggedBossId = boss.id;
+                m.classList.add('dragging'); m.setPointerCapture(e.pointerId);
+            }
+        });
 
-      const allData = await fetchData();
-      lastFilteredData = allData.filter(d=>{
-        const dDate = d.date.split(' ')[0];
-        return dDate >= dateFrom && dDate <= dateTo;
-      });
-
-      const stats = calculateDetailedStats(lastFilteredData);
-      renderTable(stats);
-
-      const scrapWaitingStats = calculateScrapWaitingStats(lastFilteredData);
-      renderScrapWaitingTable(scrapWaitingStats);
-
-      btn.style.backgroundColor = "#008080";
-      btn.textContent = "Aktualizuj";
-      startCountdown();
+        m.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isEditorMode) return;
+            const now = Date.now();
+            if (now - lastClick < 400) { 
+                lastClick = 0; toggleBossStatus(boss.id);
+            } else {
+                lastClick = now;
+                setTimeout(() => { if (lastClick !== 0) { focus(boss); lastClick = 0; } }, 400);
+            }
+        });
+        wrapper.appendChild(m);
     }
 
-    function calculateDetailedStats(data){
-      const stats = {};
-      data.forEach(({date, serial, status, person})=>{
-        if(!validStatuses.includes(status)) return;
-        const diagonals = getDiagonals(serial);
-        if(diagonals.length===0) return;
+    function toggleBossStatus(id) {
+        const b = bossData.find(x => x.id === id);
+        if (!b) return;
+        let updates = b.isAlive || b.deathTime ? { isAlive: false, deathTime: null } : { isAlive: false, deathTime: Date.now() };
+        rbRef.child(id).update(updates);
+    }
 
-        if(!stats[person]) {
-            stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
+    function listenFirebase() {
+        rbRef.on('value', (snapshot) => {
+            const data = snapshot.val() || {};
+            Object.keys(data).forEach(id => {
+                const item = data[id];
+                let boss = bossData.find(b => b.id === id);
+                if (!boss) { boss = { id, ...item }; bossData.push(boss); } else { Object.assign(boss, item); }
+                createMarker(boss);
+                const m = document.getElementById('rb-' + id);
+                if (m && !m.classList.contains('dragging')) {
+                    const p = boss.pos.split(';');
+                    m.style.top = p[0].split(':')[1]; m.style.left = p[1].split(':')[1];
+                    boss.isAlive ? m.classList.add('is-alive') : m.classList.remove('is-alive');
+                }
+            });
+            renderMonitor();
+        });
+    }
+
+    function tick() {
+        const now = Date.now();
+        bossData.forEach(boss => {
+            const m = document.getElementById('rb-' + boss.id);
+            if (!m) return;
+            if (boss.deathTime && !boss.isAlive) {
+                const rem = SPAWN_WINDOW - Math.floor((now - boss.deathTime) / 1000);
+                if (rem <= 0) {
+                    rbRef.child(boss.id).update({ isAlive: true, deathTime: null });
+                } else {
+                    let t = m.querySelector('.rb-timer-map') || document.createElement('div');
+                    t.className = 'rb-timer-map';
+                    if (!m.contains(t)) m.appendChild(t);
+                    t.innerText = `${Math.floor(rem/60)}:${(rem%60).toString().padStart(2,'0')}`;
+                }
+            } else {
+                const t = m.querySelector('.rb-timer-map'); if (t) t.remove();
+            }
+        });
+        renderMonitor(); // Перерисовываем список для обновления порядка и таймеров
+    }
+
+    function renderMonitor() {
+        const list = document.getElementById('monitor-list');
+        const now = Date.now();
+
+        // 1. Фильтруем только активных (живых или с таймером)
+        const active = bossData.filter(b => {
+            const timeLeft = b.deathTime ? (SPAWN_WINDOW - Math.floor((now - b.deathTime) / 1000)) : 0;
+            return b.isAlive || (b.deathTime && timeLeft > 0);
+        });
+
+        // 2. Сортировка: Таймеры сверху (по возрастанию времени), READY снизу
+        active.sort((a, b) => {
+            const tA = a.deathTime ? (SPAWN_WINDOW - Math.floor((now - a.deathTime) / 1000)) : -1;
+            const tB = b.deathTime ? (SPAWN_WINDOW - Math.floor((now - b.deathTime) / 1000)) : -1;
+
+            if (tA > 0 && tB > 0) return tA - tB; // Оба таймеры: кто раньше, тот выше
+            if (tA > 0) return -1; // А - таймер, Б - READY -> А выше
+            if (tB > 0) return 1;  // Б - таймер, А - READY -> Б выше
+            return a.name.localeCompare(b.name); // Оба READY: по алфавиту
+        });
+
+        if (active.length === 0) {
+            list.innerHTML = '<div style="text-align:center; color:#555; padding:20px;">Нет активных боссов</div>';
+            return;
         }
 
-        const day = date.split(' ')[0];
-        if(day) stats[person].days.add(day);
-        if(status === 'OK') stats[person].okCount++;
-        if(status === 'NDF') stats[person].ndfCount++;
-
-        diagonals.forEach(diagonal=>{
-          if(!stats[person].diagonals[diagonal]) stats[person].diagonals[diagonal] = { sum:0 };
-          stats[person].diagonals[diagonal].sum++;
-        });
-      });
-      return stats;
-    }
-
-    function calculateScrapWaitingStats(data){
-      const stats = {};
-      data.forEach(({serial, status, person})=>{
-        if(!person||!serial||!status) return;
-        const upperStatus = status.toUpperCase();
-        let type = (upperStatus.includes('SCRAP')) ? 'scrap' : (upperStatus.includes('WAITING')) ? 'waiting' : null;
-        if(!type) return;
-        const diagonals = getDiagonals(serial);
-        if(diagonals.length===0) return;
-        if(!stats[person]) stats[person]={};
-        diagonals.forEach(diagonal=>{
-          if(!stats[person][diagonal]) stats[person][diagonal]={scrap:0, waiting:0};
-          stats[person][diagonal][type]++;
-        });
-      });
-      return stats;
-    }
-
-    function renderTable(stats){
-      const container=document.getElementById('stats-container'); 
-      container.innerHTML='';
-      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
-      
-      let people=Object.keys(stats).sort((a,b)=>{
-        let sumA = stats[a].okCount + stats[a].ndfCount;
-        let sumB = stats[b].okCount + stats[b].ndfCount;
-        return sumB - sumA;
-      });
-
-      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych</p>'; return; }
-
-      const table = document.createElement('table');
-      const header = `<thead><tr>
-                        <th>Name</th>
-                        ${diagonals.map(d=>`<th>${d}</th>`).join('')}
-                        <th class="total-col">Total (Sum / OK / NDF)</th>
-                        <th class="total-col">Dni</th>
-                      </tr></thead>`;
-      table.innerHTML = header;
-
-      const tbody = document.createElement('tbody');
-      people.forEach(person=>{
-        const tr = document.createElement('tr');
-        tr.className = 'person-row';
-        tr.onclick = () => toggleDetails(tr, person);
-
-        const pData = stats[person];
-        const rowTotal = pData.okCount + pData.ndfCount;
-
-        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-                       diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
-                       `<td class="total-col">
-                          <div class="total-split">
-                            <span class="total-sum">${rowTotal}</span>
-                            <span class="sep">/</span>
-                            <span class="t-ok">${pData.okCount}</span>
-                            <span class="sep">/</span>
-                            <span class="t-ndf">${pData.ndfCount}</span>
-                          </div>
-                        </td>` +
-                       `<td class="total-col">${pData.days.size}</td>`;
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
-    }
-
-    function toggleDetails(row, personName) {
-      if(row.nextSibling && row.nextSibling.classList.contains('detail-row')){
-        row.nextSibling.remove();
-        return;
-      }
-      const details = lastFilteredData.filter(d => d.person === personName);
-      const detailRow = document.createElement('tr');
-      detailRow.className = 'detail-row';
-      let rowsHtml = details.map(d => {
-        let statusClass = "st-ok";
-        let rowBg = "transparent";
-        const s = d.status.toUpperCase();
-        if (s.includes('SCRAP')) { statusClass = "st-scrap"; rowBg = "rgba(255, 0, 0, 0.2)"; } 
-        else if (s.includes('WAITING')) { statusClass = "st-waiting"; rowBg = "rgba(255, 255, 0, 0.1)"; } 
-        else if (s.includes('NDF')) { statusClass = "st-ndf"; rowBg = "rgba(255, 105, 180, 0.2)"; }
-        return `<tr style="background-color: ${rowBg};">
-                  <td class="${statusClass}">${d.serial}</td>
-                  <td class="${statusClass}">${d.status}</td>
-                  <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
-                  <td class="${statusClass}">${d.statusH}</td>
-                  <td class="${statusClass}">${d.matrixStatus}</td>
-                  <td class="${statusClass}">${d.description}</td>
-                </tr>`;
-      }).join('');
-      detailRow.innerHTML = `<td colspan="100%"><table class="detail-table"><thead><tr><th>Serial</th><th>Status</th><th>FINALNA</th><th>H Status</th><th>New / NP</th><th>Info / Description</th></tr></thead><tbody>${rowsHtml}</tbody></table></td>`;
-      row.after(detailRow);
-    }
-
-    function renderScrapWaitingTable(stats){
-      const container = document.getElementById('scrap-waiting-container');
-      container.innerHTML = '';
-      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
-      if(diagonals.length === 0) {
-          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych</p>';
-          return;
-      }
-      const table = document.createElement('table');
-      table.innerHTML = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}</tr></thead>`;
-      const tbody = document.createElement('tbody');
-      Object.keys(stats).forEach(person => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-          diagonals.map(d => {
-            if(stats[person][d]) {
-              return `<td><div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div></td>`;
+        list.innerHTML = active.map(b => {
+            let timeStr = "READY";
+            let isTimer = false;
+            if (b.deathTime && !b.isAlive) {
+                const rem = Math.max(0, SPAWN_WINDOW - Math.floor((now - b.deathTime) / 1000));
+                if (rem > 0) {
+                    timeStr = `${Math.floor(rem/60)}:${(rem%60).toString().padStart(2,'0')}`;
+                    isTimer = true;
+                }
             }
-            return '<td>-</td>';
-          }).join('');
-        tbody.appendChild(tr);
-      });
-      table.appendChild(tbody);
-      container.appendChild(table);
+            return `<div class="monitor-item" onclick="focusById('${b.id}')">
+                <div><b>${b.name}</b><span class="rb-note-text">${b.note || ""}</span></div>
+                <span class="${isTimer ? 'timer-active-text' : 'ready-text'}" 
+                      style="font-family:monospace; border:1px solid #444; padding:2px 6px; border-radius:4px; min-width:45px; text-align:center;">
+                    ${timeStr}
+                </span>
+            </div>`;
+        }).join('');
     }
 
-    document.getElementById('update-btn').addEventListener('click', () => {
-        clearInterval(countdownTimer);
+    function focusById(id) { const b = bossData.find(x => x.id === id); if (b) focus(b); }
+    function focus(boss) {
+        const m = document.getElementById('rb-' + boss.id);
+        if(!m) return;
+        const t = parseInt(m.style.top); const l = parseInt(m.style.left);
+        scale = 0.8; posX = (window.innerWidth / 2) - (l * scale); posY = (window.innerHeight / 2) - (t * scale);
         update();
-    });
-    const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    document.getElementById('date-from').value = todayStr;
-    document.getElementById('date-to').value = todayStr;
-    update();
-  </script>
+    }
+    function update() { wrapper.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
+
+    function toggleEditor() {
+        if (!isEditorMode) { if (prompt("Пароль:") === "D36rk43mgm") isEditorMode = true; else return; } else isEditorMode = false;
+        document.getElementById('editor-btn').classList.toggle('active', isEditorMode);
+        document.getElementById('editor-btn').innerText = isEditorMode ? "РЕДАКТОР: ВКЛ" : "РЕДАКТОР: ВЫКЛ";
+        document.getElementById('add-boss-btn').style.display = isEditorMode ? "block" : "none";
+    }
+
+    function startAddingBoss() { isAddingMode = true; alert("Кликни на карту для установки РБ"); }
+
+    function resetTimers() {
+        if(confirm("Сбросить все READY-статусы?")) {
+            bossData.forEach(b => { if (b.isAlive) rbRef.child(b.id).update({ isAlive: false, deathTime: null }); });
+        }
+    }
+
+    function updateGameTime() {
+        const now = new Date();
+        const nowSec = (now.getUTCHours() * 3600) + (now.getUTCMinutes() * 60) + now.getUTCSeconds();
+        const syncReal = (19 * 3600) + (56 * 60) + 6; const syncGame = (17 * 60) + 36;
+        let gameMin = Math.floor(syncGame + (nowSec - syncReal) / 10);
+        gameMin = ((gameMin % 1440) + 1440) % 1440;
+        const h = Math.floor(gameMin / 60); const m = gameMin % 60;
+        document.getElementById('game-time').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+    }
+
+    // Drag & Zoom Controls
+    let isDrag = false, lx, ly;
+    window.onpointerdown = e => { if(e.button === 0 && !draggedBossId && !e.target.closest('#sidebar')) { isDrag = true; lx = e.clientX; ly = e.clientY; } };
+    window.onpointermove = e => {
+        if (draggedBossId) {
+            const rect = wrapper.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / scale);
+            const y = Math.round((e.clientY - rect.top) / scale);
+            const m = document.getElementById('rb-' + draggedBossId);
+            if (m) { m.style.top = y + 'px'; m.style.left = x + 'px'; }
+        } else if (isDrag) {
+            posX += e.clientX - lx; posY += e.clientY - ly;
+            lx = e.clientX; ly = e.clientY; update();
+        }
+    };
+    window.onpointerup = (e) => {
+        if (isAddingMode && isEditorMode && !draggedBossId) {
+            const rect = wrapper.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) / scale);
+            const y = Math.round((e.clientY - rect.top) / scale);
+            const name = prompt("Имя РБ:");
+            if (name) rbRef.child("rb_"+Date.now()).set({ name, pos: `top:${y}px;left:${x}px;`, isAlive: false, deathTime: null });
+            isAddingMode = false;
+        }
+        if (draggedBossId) {
+            const m = document.getElementById('rb-' + draggedBossId);
+            if (m) rbRef.child(draggedBossId).update({ pos: `top:${m.style.top};left:${m.style.left};` });
+            draggedBossId = null;
+        }
+        isDrag = false;
+    };
+    viewport.addEventListener('wheel', e => {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? 0.8 : 1.2;
+        const ns = Math.min(Math.max(0.05, scale * delta), 4);
+        posX = e.clientX - (e.clientX - posX) * (ns / scale);
+        posY = e.clientY - (e.clientY - posY) * (ns / scale);
+        scale = ns; update();
+    }, { passive: false });
+
+    init();
+</script>
 </body>
 </html>
