@@ -29,7 +29,10 @@
 
     th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
     
-    /* Стили для нового отображения Total (12 / 10 / 2) */
+    /* Стили для итоговой строки (tfoot) */
+    tfoot tr td { background-color: #111; font-weight: bold; border-top: 2px solid #00cccc; }
+
+    /* Стили для отображения Total (12 / 10 / 2) */
     .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
     .total-sum { font-weight: bold; color: #ffffff; }
     .t-ok { color: #00ffea; }
@@ -235,6 +238,13 @@
       table.innerHTML = header;
 
       const tbody = document.createElement('tbody');
+
+      // Переменные для подсчета общих итогов
+      const diagonalTotals = {};
+      diagonals.forEach(d => diagonalTotals[d] = 0);
+      let grandTotalOk = 0;
+      let grandTotalNdf = 0;
+
       people.forEach(person=>{
         const tr = document.createElement('tr');
         tr.className = 'person-row';
@@ -243,8 +253,15 @@
         const pData = stats[person];
         const rowTotal = pData.okCount + pData.ndfCount;
 
+        grandTotalOk += pData.okCount;
+        grandTotalNdf += pData.ndfCount;
+
         tr.innerHTML = `<td class="name-cell">${person}</td>` + 
-                       diagonals.map(d=>`<td>${pData.diagonals[d] ? pData.diagonals[d].sum : '-'}</td>`).join('') +
+                       diagonals.map(d=> {
+                         const val = pData.diagonals[d] ? pData.diagonals[d].sum : 0;
+                         if(val) diagonalTotals[d] += val;
+                         return `<td>${val || '-'}</td>`;
+                       }).join('') +
                        `<td class="total-col">
                           <div class="total-split">
                             <span class="total-sum">${rowTotal}</span>
@@ -258,6 +275,27 @@
         tbody.appendChild(tr);
       });
       table.appendChild(tbody);
+
+      // Генерация строки итогов (tfoot)
+      const grandTotalSum = grandTotalOk + grandTotalNdf;
+      const tfoot = document.createElement('tfoot');
+      tfoot.innerHTML = `
+        <tr>
+          <td class="name-cell">Razem / Total</td>
+          ${diagonals.map(d => `<td>${diagonalTotals[d] || '-'}</td>`).join('')}
+          <td class="total-col">
+            <div class="total-split">
+              <span class="total-sum">${grandTotalSum}</span>
+              <span class="sep">/</span>
+              <span class="t-ok">${grandTotalOk}</span>
+              <span class="sep">/</span>
+              <span class="t-ndf">${grandTotalNdf}</span>
+            </div>
+          </td>
+          <td class="total-col">-</td>
+        </tr>`;
+      table.appendChild(tfoot);
+
       container.appendChild(table);
     }
 
@@ -274,14 +312,12 @@
       detailRow.appendChild(containerTd);
       row.after(detailRow);
 
-      // Отрисовка подтаблицы (по умолчанию сортировка от A до Z)
       renderDetailContent(containerTd, personName, 'asc');
     }
 
     function renderDetailContent(containerTd, personName, sortOrder) {
       let details = lastFilteredData.filter(d => d.person === personName);
 
-      // Сортировка по алфавиту / числам (A-Z / от малого к большему или наоборот)
       details.sort((a, b) => {
         const comp = a.serial.localeCompare(b.serial, undefined, { numeric: true, sensitivity: 'base' });
         return sortOrder === 'asc' ? comp : -comp;
