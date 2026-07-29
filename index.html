@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA  2026</title>
+  <title>LCDR LIVE DATA 2026</title>
   <style>
     body {
       background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
@@ -17,8 +17,6 @@
     .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
     .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
     input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
-    
-    #auto-timer { color: #00ffea; font-size: 14px; font-family: monospace; min-width: 180px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 4px; }
 
     #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -41,6 +39,8 @@
     .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
     .detail-table { width: 100%; border: 1px solid #444; }
     .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
+    .detail-table th.sortable { cursor: pointer; user-select: none; transition: color 0.2s; }
+    .detail-table th.sortable:hover { color: #00cccc; }
     .detail-table td { font-size: 13px; white-space: normal; text-align: left; border-bottom: 1px solid #222; }
 
     .st-ndf { color: #ff69b4 !important; font-weight: bold; }
@@ -66,7 +66,6 @@
       <label class="date-info">Do:</label>
       <input type="date" id="date-to"/>
       <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
-      <div id="auto-timer">Auto refresh in: --:--</div>
     </div>
   </div>
 
@@ -83,25 +82,7 @@
     const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
     const validStatuses = ['OK', 'NDF'];
 
-    let refreshInterval = 30; 
-    let countdown = refreshInterval;
-    let countdownTimer;
     let lastFilteredData = []; 
-
-    function startCountdown() {
-      clearInterval(countdownTimer);
-      countdown = refreshInterval;
-      countdownTimer = setInterval(() => {
-        countdown--;
-        const mins = Math.floor(countdown / 60);
-        const secs = String(countdown % 60).padStart(2, '0');
-        document.getElementById('auto-timer').textContent = `Auto refresh in: ${mins}:${secs}`;
-        if (countdown <= 0) {
-          clearInterval(countdownTimer);
-          update(); 
-        }
-      }, 1000);
-    }
 
     const diagonalMapPrefix = {   '3P0':65,'3H0':55,'WP0':65,'WP5':65,'3M0':50,'3Q0':43,'WQ0':43,'3C0':32,'WC0':32,'WH8':55,
                                'WH0':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
@@ -161,10 +142,8 @@
 
     async function update(){
       const btn = document.getElementById('update-btn');
-      const timerLabel = document.getElementById('auto-timer');
       btn.style.backgroundColor = "#555";
-      btn.textContent = " ";
-      timerLabel.textContent = " ";
+      btn.textContent = "Ładowanie...";
 
       const dateFrom = document.getElementById('date-from').value;
       const dateTo = document.getElementById('date-to').value;
@@ -172,7 +151,6 @@
       if(!dateFrom || !dateTo) { 
         btn.textContent = "Aktualizuj";
         btn.style.backgroundColor = "#008080";
-        startCountdown(); 
         return; 
       }
 
@@ -190,7 +168,6 @@
 
       btn.style.backgroundColor = "#008080";
       btn.textContent = "Aktualizuj";
-      startCountdown();
     }
 
     function calculateDetailedStats(data){
@@ -289,9 +266,29 @@
         row.nextSibling.remove();
         return;
       }
-      const details = lastFilteredData.filter(d => d.person === personName);
+
       const detailRow = document.createElement('tr');
       detailRow.className = 'detail-row';
+      const containerTd = document.createElement('td');
+      containerTd.colSpan = 100;
+      detailRow.appendChild(containerTd);
+      row.after(detailRow);
+
+      // Отрисовка подтаблицы (по умолчанию сортировка от A до Z)
+      renderDetailContent(containerTd, personName, 'asc');
+    }
+
+    function renderDetailContent(containerTd, personName, sortOrder) {
+      let details = lastFilteredData.filter(d => d.person === personName);
+
+      // Сортировка по алфавиту / числам (A-Z / от малого к большему или наоборот)
+      details.sort((a, b) => {
+        const comp = a.serial.localeCompare(b.serial, undefined, { numeric: true, sensitivity: 'base' });
+        return sortOrder === 'asc' ? comp : -comp;
+      });
+
+      const arrow = sortOrder === 'asc' ? ' ▲' : ' ▼';
+
       let rowsHtml = details.map(d => {
         let statusClass = "st-ok";
         let rowBg = "transparent";
@@ -308,8 +305,25 @@
                   <td class="${statusClass}">${d.description}</td>
                 </tr>`;
       }).join('');
-      detailRow.innerHTML = `<td colspan="100%"><table class="detail-table"><thead><tr><th>Serial</th><th>Status</th><th>FINALNA</th><th>H Status</th><th>New / NP</th><th>Info / Description</th></tr></thead><tbody>${rowsHtml}</tbody></table></td>`;
-      row.after(detailRow);
+
+      const nextOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+
+      containerTd.innerHTML = `
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="renderDetailContent(this.closest('td'), '${personName}', '${nextOrder}')" title="Kliknij, aby posortować">
+                Serial${arrow}
+              </th>
+              <th>Status</th>
+              <th>FINALNA</th>
+              <th>H Status</th>
+              <th>New / NP</th>
+              <th>Info / Description</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`;
     }
 
     function renderScrapWaitingTable(stats){
@@ -338,10 +352,8 @@
       container.appendChild(table);
     }
 
-    document.getElementById('update-btn').addEventListener('click', () => {
-        clearInterval(countdownTimer);
-        update();
-    });
+    document.getElementById('update-btn').addEventListener('click', update);
+
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     document.getElementById('date-from').value = todayStr;
