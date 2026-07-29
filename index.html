@@ -18,7 +18,6 @@
     .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
     input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
 
-    /* Стили для выпадающего списка сотрудников */
     .dropdown { position: relative; display: inline-block; }
     #person-dropdown-btn {
       padding: 8px 14px;
@@ -63,10 +62,8 @@
 
     th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
     
-    /* Стили для итоговой строки (tfoot) */
     tfoot tr td { background-color: #111; font-weight: bold; border-top: 2px solid #00cccc; }
 
-    /* Стили для отображения Total (12 / 10 / 2) */
     .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
     .total-sum { font-weight: bold; color: #ffffff; }
     .t-ok { color: #00ffea; }
@@ -210,7 +207,6 @@
         return dDate >= dateFrom && dDate <= dateTo;
       });
 
-      // Получаем список всех уникальных сотрудников за выбранные даты
       const availablePeople = Array.from(new Set(lastFilteredData.map(d => d.person).filter(Boolean))).sort();
       buildPersonDropdown(availablePeople);
 
@@ -220,16 +216,14 @@
       btn.textContent = "Aktualizuj";
     }
 
-    // Построение списка чекбоксов в выпадающем меню
     function buildPersonDropdown(peopleList) {
       const container = document.getElementById('person-checkboxes');
       container.innerHTML = '';
       
-      // По умолчанию выбираем всех сотрудников, если выбор пуст
       if (selectedPeople.size === 0) {
         peopleList.forEach(p => selectedPeople.add(p));
       } else {
-        // Оставляем только тех, кто реально есть в новых датах
+
         const updatedSet = new Set();
         peopleList.forEach(p => {
           if (selectedPeople.has(p)) updatedSet.add(p);
@@ -282,7 +276,6 @@
       }
     }
 
-    // Отрисовка таблиц с учетом выбранных сотрудников
     function renderFilteredViews() {
       const filteredDataByPeople = lastFilteredData.filter(d => selectedPeople.has(d.person));
 
@@ -506,7 +499,6 @@
       container.appendChild(table);
     }
 
-    // События для выпадающего списка
     document.getElementById('person-dropdown-btn').addEventListener('click', (e) => {
       e.stopPropagation();
       document.getElementById('person-dropdown-content').classList.toggle('show');
