@@ -18,6 +18,40 @@
     .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
     input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
 
+    /* Стили для выпадающего списка сотрудников */
+    .dropdown { position: relative; display: inline-block; }
+    #person-dropdown-btn {
+      padding: 8px 14px;
+      border: 1px solid #00cccc;
+      border-radius: 5px;
+      background-color: #222;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 14px;
+      transition: 0.2s;
+    }
+    #person-dropdown-btn:hover { background-color: #333; }
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #1a1a1a;
+      min-width: 230px;
+      box-shadow: 0px 8px 20px rgba(0,0,0,0.8);
+      border: 1px solid #00cccc;
+      border-radius: 5px;
+      z-index: 100;
+      padding: 12px;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+    .dropdown-content.show { display: block; }
+    .dropdown-actions { font-size: 12px; color: #00cccc; margin-bottom: 10px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; }
+    .dropdown-actions span { cursor: pointer; text-decoration: underline; margin: 0 4px; }
+    .dropdown-actions span:hover { color: #fff; }
+    .person-checkbox-item { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 6px 0; cursor: pointer; color: #fff; }
+    .person-checkbox-item input { cursor: pointer; accent-color: #00cccc; width: 16px; height: 16px; }
+
     #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
     th, td { border: 1px solid #333; padding: 12px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
@@ -68,6 +102,18 @@
       <input type="date" id="date-from"/>
       <label class="date-info">Do:</label>
       <input type="date" id="date-to"/>
+
+      <div class="dropdown" id="person-dropdown-container">
+        <button id="person-dropdown-btn">Pracownicy (Wszyscy) ▼</button>
+        <div id="person-dropdown-content" class="dropdown-content">
+          <div class="dropdown-actions">
+            <span onclick="selectAllPeople(true)">Zaznacz wszystkich</span> | 
+            <span onclick="selectAllPeople(false)">Odznacz wszystkich</span>
+          </div>
+          <div id="person-checkboxes"></div>
+        </div>
+      </div>
+
       <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
     </div>
   </div>
@@ -86,6 +132,7 @@
     const validStatuses = ['OK', 'NDF'];
 
     let lastFilteredData = []; 
+    let selectedPeople = new Set(); 
 
     const diagonalMapPrefix = {   '3P0':65,'3H0':55,'WP0':65,'WP5':65,'3M0':50,'3Q0':43,'WQ0':43,'3C0':32,'WC0':32,'WH8':55,
                                'WH0':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
@@ -163,14 +210,87 @@
         return dDate >= dateFrom && dDate <= dateTo;
       });
 
-      const stats = calculateDetailedStats(lastFilteredData);
-      renderTable(stats);
+      // Получаем список всех уникальных сотрудников за выбранные даты
+      const availablePeople = Array.from(new Set(lastFilteredData.map(d => d.person).filter(Boolean))).sort();
+      buildPersonDropdown(availablePeople);
 
-      const scrapWaitingStats = calculateScrapWaitingStats(lastFilteredData);
-      renderScrapWaitingTable(scrapWaitingStats);
+      renderFilteredViews();
 
       btn.style.backgroundColor = "#008080";
       btn.textContent = "Aktualizuj";
+    }
+
+    // Построение списка чекбоксов в выпадающем меню
+    function buildPersonDropdown(peopleList) {
+      const container = document.getElementById('person-checkboxes');
+      container.innerHTML = '';
+      
+      // По умолчанию выбираем всех сотрудников, если выбор пуст
+      if (selectedPeople.size === 0) {
+        peopleList.forEach(p => selectedPeople.add(p));
+      } else {
+        // Оставляем только тех, кто реально есть в новых датах
+        const updatedSet = new Set();
+        peopleList.forEach(p => {
+          if (selectedPeople.has(p)) updatedSet.add(p);
+        });
+        if (updatedSet.size === 0) peopleList.forEach(p => updatedSet.add(p));
+        selectedPeople = updatedSet;
+      }
+
+      peopleList.forEach(person => {
+        const label = document.createElement('label');
+        label.className = 'person-checkbox-item';
+        
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = person;
+        cb.checked = selectedPeople.has(person);
+        cb.onchange = () => {
+          if (cb.checked) selectedPeople.add(person);
+          else selectedPeople.delete(person);
+          updateDropdownButtonText(peopleList.length);
+          renderFilteredViews();
+        };
+
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(person));
+        container.appendChild(label);
+      });
+
+      updateDropdownButtonText(peopleList.length);
+    }
+
+    function selectAllPeople(select) {
+      const checkboxes = document.querySelectorAll('#person-checkboxes input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        cb.checked = select;
+        if (select) selectedPeople.add(cb.value);
+        else selectedPeople.delete(cb.value);
+      });
+      updateDropdownButtonText(checkboxes.length);
+      renderFilteredViews();
+    }
+
+    function updateDropdownButtonText(total) {
+      const btn = document.getElementById('person-dropdown-btn');
+      const count = selectedPeople.size;
+      if (count === total || total === 0) {
+        btn.textContent = `Pracownicy (Wszyscy) ▼`;
+      } else {
+        btn.textContent = `Pracownicy (${count}/${total}) ▼`;
+      }
+    }
+
+    // Отрисовка таблиц с учетом выбранных сотрудников
+    function renderFilteredViews() {
+      const filteredDataByPeople = lastFilteredData.filter(d => selectedPeople.has(d.person));
+
+      const stats = calculateDetailedStats(filteredDataByPeople);
+      renderTable(stats);
+
+      const scrapWaitingStats = calculateScrapWaitingStats(filteredDataByPeople);
+      renderScrapWaitingTable(scrapWaitingStats);
     }
 
     function calculateDetailedStats(data){
@@ -226,7 +346,7 @@
         return sumB - sumA;
       });
 
-      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych</p>'; return; }
+      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych dla wybranych pracowników</p>'; return; }
 
       const table = document.createElement('table');
       const header = `<thead><tr>
@@ -239,7 +359,6 @@
 
       const tbody = document.createElement('tbody');
 
-      // Переменные для подсчета общих итогов
       const diagonalTotals = {};
       diagonals.forEach(d => diagonalTotals[d] = 0);
       let grandTotalOk = 0;
@@ -276,7 +395,6 @@
       });
       table.appendChild(tbody);
 
-      // Генерация строки итогов (tfoot)
       const grandTotalSum = grandTotalOk + grandTotalNdf;
       const tfoot = document.createElement('tfoot');
       tfoot.innerHTML = `
@@ -387,6 +505,19 @@
       table.appendChild(tbody);
       container.appendChild(table);
     }
+
+    // События для выпадающего списка
+    document.getElementById('person-dropdown-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('person-dropdown-content').classList.toggle('show');
+    });
+
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('person-dropdown-container');
+      if (!container.contains(e.target)) {
+        document.getElementById('person-dropdown-content').classList.remove('show');
+      }
+    });
 
     document.getElementById('update-btn').addEventListener('click', update);
 
