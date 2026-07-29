@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>LCDR LIVE DATA 2026</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     body {
       background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
@@ -69,6 +70,7 @@
       <label class="date-info">Do:</label>
       <input type="date" id="date-to"/>
       <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
+      <button id="export-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#107c41; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Export to Excel</button>
     </div>
   </div>
 
@@ -239,7 +241,6 @@
 
       const tbody = document.createElement('tbody');
 
-      // Переменные для подсчета общих итогов
       const diagonalTotals = {};
       diagonals.forEach(d => diagonalTotals[d] = 0);
       let grandTotalOk = 0;
@@ -276,7 +277,6 @@
       });
       table.appendChild(tbody);
 
-      // Генерация строки итогов (tfoot)
       const grandTotalSum = grandTotalOk + grandTotalNdf;
       const tfoot = document.createElement('tfoot');
       tfoot.innerHTML = `
@@ -388,7 +388,104 @@
       container.appendChild(table);
     }
 
+    // Вспомогательная функция для генерации допустимых имен страниц в Excel (макс. 31 символ, без запрещенных знаков)
+    function getUniqueSheetName(wb, baseName) {
+      let name = (baseName || 'Worker').replace(/[\\/?*:[\]]/g, '').trim().slice(0, 31);
+      if (!name) name = 'Sheet';
+      let finalName = name;
+      let counter = 1;
+      while (wb.SheetNames.includes(finalName)) {
+        const suffix = `_${counter}`;
+        finalName = name.slice(0, 31 - suffix.length) + suffix;
+        counter++;
+      }
+      return finalName;
+    }
+
+    // Функция Экспорта в Excel
+    function exportToExcel() {
+      if (!lastFilteredData || lastFilteredData.length === 0) {
+        alert("Brak danych do eksportu!");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+      const stats = calculateDetailedStats(lastFilteredData);
+      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b) => b-a);
+      
+      let people = Object.keys(stats).sort((a,b) => {
+        let sumA = stats[a].okCount + stats[a].ndfCount;
+        let sumB = stats[b].okCount + stats[b].ndfCount;
+        return sumB - sumA;
+      });
+
+      // --- 1. Вкладка "Podsumowanie" (Общие результаты) ---
+      const summaryRows = [];
+      summaryRows.push(['Name', ...diagonals.map(String), 'Total Sum', 'OK', 'NDF', 'Dni']);
+
+      const diagonalTotals = {};
+      diagonals.forEach(d => diagonalTotals[d] = 0);
+      let grandTotalOk = 0;
+      let grandTotalNdf = 0;
+
+      people.forEach(person => {
+        const pData = stats[person];
+        const rowTotal = pData.okCount + pData.ndfCount;
+        grandTotalOk += pData.okCount;
+        grandTotalNdf += pData.ndfCount;
+
+        const row = [person];
+        diagonals.forEach(d => {
+          const val = pData.diagonals[d] ? pData.diagonals[d].sum : 0;
+          if (val) diagonalTotals[d] += val;
+          row.push(val || 0);
+        });
+        row.push(rowTotal, pData.okCount, pData.ndfCount, pData.days.size);
+        summaryRows.push(row);
+      });
+
+      // Итоговая строка в Podsumowanie
+      const grandTotalSum = grandTotalOk + grandTotalNdf;
+      const totalRow = ['Razem / Total'];
+      diagonals.forEach(d => totalRow.push(diagonalTotals[d] || 0));
+      totalRow.push(grandTotalSum, grandTotalOk, grandTotalNdf, '-');
+      summaryRows.push(totalRow);
+
+      const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+      XLSX.utils.book_append_sheet(wb, wsSummary, "Podsumowanie");
+
+      // --- 2. Вкладка для КАЖДОГО сотрудника ---
+      people.forEach(person => {
+        const personDetails = lastFilteredData.filter(d => d.person === person);
+        const personRows = [
+          ['Data', 'Serial', 'Status', 'FINALNA', 'H Status', 'New / NP', 'Info / Description']
+        ];
+        
+        personDetails.forEach(d => {
+          personRows.push([
+            d.date,
+            d.serial,
+            d.status,
+            d.finalna,
+            d.statusH,
+            d.matrixStatus,
+            d.description
+          ]);
+        });
+
+        const wsPerson = XLSX.utils.aoa_to_sheet(personRows);
+        const sheetName = getUniqueSheetName(wb, person);
+        XLSX.utils.book_append_sheet(wb, wsPerson, sheetName);
+      });
+
+      // --- 3. Генерация и скачивание файла ---
+      const dateFrom = document.getElementById('date-from').value || 'start';
+      const dateTo = document.getElementById('date-to').value || 'end';
+      XLSX.writeFile(wb, `LCDR_Live_Data_${dateFrom}_${dateTo}.xlsx`);
+    }
+
     document.getElementById('update-btn').addEventListener('click', update);
+    document.getElementById('export-btn').addEventListener('click', exportToExcel);
 
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
