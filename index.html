@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>LCDR LIVE DATA 2026</title>
+  <title>LCDR LIVE DATA  2026</title>
   <style>
     body {
       background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
@@ -103,36 +103,7 @@
       }, 1000);
     }
 
-    // Нормализация дат разного формата (DD.MM.YYYY, YYYY-MM-DD и др.) к единому YYYY-MM-DD
-    function normalizeDate(dateStr) {
-      if (!dateStr) return '';
-      const clean = dateStr.trim().split(' ')[0];
-      if (/^\d{4}-\d{2}-\d{2}$/.test(clean)) return clean;
-      
-      const parts = clean.split(/[\.\/]/);
-      if (parts.length === 3 && parts[2].length === 4) {
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        const year = parts[2];
-        return `${year}-${month}-${day}`;
-      }
-      return clean;
-    }
-
-    const diagonalMapPrefix = { 
-      'WM011': 55, // Приоритетный длинный префикс
-      'WH8': 55,
-      'WM0': 50,   // Базовый 3-значный префикс
-      'WC8': 32,
-      'WU0': 43,
-      'SQ1': 43,
-      'WM5': 50,
-      'WC7': 32,
-      'WP5': 65,
-      'WW1': 75,
-      'WM6': 50 
-    };
-
+    const diagonalMapPrefix = { 'WH8':55,'WH0':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
     const diagonalMap = {
       '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
       '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
@@ -144,29 +115,13 @@
     };
 
     function getDiagonals(serial){
-      if(!serial) return [];
-      const upper = serial.trim().toUpperCase();
+      if(!serial || serial.length<6) return [];
+      const upper = serial.toUpperCase();
       const result = new Set();
-
-      // Сортировка по убыванию длины префикса для точного совпадения (WM011 раньше WM0)
-      const sortedPrefixes = Object.keys(diagonalMapPrefix).sort((a, b) => b.length - a.length);
-
-      let prefixMatched = false;
-      for (const prefix of sortedPrefixes) {
-        if (upper.startsWith(prefix)) {
-          result.add(diagonalMapPrefix[prefix]);
-          prefixMatched = true;
-          break; // Совпадение найдено, останавливаем поиск префикса
-        }
-      }
-
-      if (!prefixMatched) {
-        const match = upper.match(/^[A-Z]{3}(\d{3})/);
-        if (match && diagonalMap[match[1]]) {
-          result.add(diagonalMap[match[1]]);
-        }
-      }
-
+      const match = upper.match(/^[A-Z]{3}(\d{3})/);
+      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
+      const prefix = upper.slice(0,3);
+      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
       return [...result];
     }
 
@@ -186,17 +141,17 @@
       let combined = [];
       for(const name of sheetNames){
         const sheetData = await getData(name);
-        if(sheetData.length < 2) continue;
+        if(sheetData.length<2) continue;
         const rows = sheetData.slice(1);
         const mapped = rows.map(row=>({
-          date: (row[0]||'').trim(),
-          serial: (row[2]||'').trim(),
-          status: (row[4]||'').trim().toUpperCase(),
-          finalna: (row[6]||'').trim(),
-          person: (row[5]||'').trim(),
-          statusH: (row[7]||'').trim(),
-          matrixStatus: (row[9]||'').trim(),
-          description: (row[10]||'').trim()
+          date: row[0]||'',
+          serial: row[2]||'',
+          status: (row[4]||'').toUpperCase(),
+          finalna: row[6]||'',
+          person: row[5]||'',
+          statusH: row[7]||'',
+          matrixStatus: row[9]||'',
+          description: row[10]||''
         }));
         combined = combined.concat(mapped);
       }
@@ -222,8 +177,8 @@
 
       const allData = await fetchData();
       lastFilteredData = allData.filter(d=>{
-        const normalizedDate = normalizeDate(d.date);
-        return normalizedDate >= dateFrom && normalizedDate <= dateTo;
+        const dDate = d.date.split(' ')[0];
+        return dDate >= dateFrom && dDate <= dateTo;
       });
 
       const stats = calculateDetailedStats(lastFilteredData);
@@ -248,7 +203,7 @@
             stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
         }
 
-        const day = normalizeDate(date);
+        const day = date.split(' ')[0];
         if(day) stats[person].days.add(day);
         if(status === 'OK') stats[person].okCount++;
         if(status === 'NDF') stats[person].ndfCount++;
