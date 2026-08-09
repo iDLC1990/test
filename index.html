@@ -373,7 +373,7 @@
 
     let products = [];
     let activeEditorType = 'cs';
-    let sampleProduct = { sn: "SN1234567890", pn: "PN-SAMPLE-999", brand: "SAMPLE BRAND" };
+    let sampleProduct = { sn: "GBV270331B6X00LC0WTG5BM0027", pn: "750GBV270331B6N000", brand: "SAMPLE BRAND" };
 
     const tableBody = document.getElementById('productsTableBody');
     const editorModal = document.getElementById('editorModal');
@@ -497,7 +497,7 @@
           </div>
           <div class="component-fields" id="fields_${type}_${idPrefix}">
             ${hasX ? `<div class="control-group"><label><span>По горизонтали (X):</span> <strong id="lbl_${type}_${idPrefix}_x">0</strong>px</label><input type="range" id="${type}_${idPrefix}_x" min="-150" max="150" value="0" oninput="onSliderInput('${type}')"></div>` : ''}
-            ${hasY ? `<div class="control-group"><label><span>Вертикальная позиция (Y от верха):</span> <strong id="lbl_${type}_${idPrefix}_y">0</strong>px</label><input type="range" id="${type}_${idPrefix}_y" min="0" max="290" value="0" oninput="onSliderInput('${type}')"></div>` : ''}
+            ${hasY ? `<div class="control-group"><label><span>Вертикальная позиция (Y от верха):</span> <strong id="lbl_${type}_${idPrefix}_y">0</strong>px</label><input type="range" id="${type}_${idPrefix}_y" min="-50" max="350" value="0" oninput="onSliderInput('${type}')"></div>` : ''}
             <div class="control-group"><label><span>Высота блока / Отступ:</span> <strong id="lbl_${type}_${idPrefix}_h">${idPrefix.includes('bc') ? '52' : '12'}</strong>px</label><input type="range" id="${type}_${idPrefix}_h" min="${idPrefix.includes('bc') ? 20 : 0}" max="${idPrefix.includes('bc') ? 120 : 40}" value="${idPrefix.includes('bc') ? (idPrefix === 'bc_sn' ? 72 : 52) : 12}" oninput="onSliderInput('${type}')"></div>
             ${hasFont ? `<div class="control-group"><label><span>Размер шрифта:</span> <strong id="lbl_${type}_${idPrefix}_f">14</strong>pt</label><input type="range" id="${type}_${idPrefix}_f" min="8" max="35" value="14" oninput="onSliderInput('${type}')"></div>` : ''}
             ${hasScaleY ? `<div class="control-group"><label><span>Растянуть в высоту (ScaleY):</span> <strong id="lbl_${type}_${idPrefix}_sy">1.0</strong></label><input type="range" id="${type}_${idPrefix}_sy" min="0.5" max="3.0" step="0.1" value="1.0" oninput="onSliderInput('${type}')"></div>` : ''}
