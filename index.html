@@ -1,719 +1,523 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Печать этикеток — TSC DA220 с детальным редактором</title>
-  
-  <!-- Библиотеки -->
-  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LCDR LIVE DATA 2026</title>
   <style>
-    :root {
-      --bg-color: #111827;
-      --card-bg: #1F2937;
-      --accent-color: #2563EB;
-      --accent-hover: #1D4ED8;
-      --text-main: #F9FAFB;
-      --text-muted: #9CA3AF;
-      --border-color: #374151;
-      --radius: 12px;
-      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-      --shadow-modal: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 40px 20px;
-      line-height: 1.5;
+      background: url("https://raw.githubusercontent.com/iDLC1990/test/main/pexels-iriser-1366957.jpg") no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      margin: 0;
     }
+    .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 10%; background-color: rgba(0,0,0,0.6); flex-wrap: wrap; border-bottom: 2px solid #00cccc; }
+    .header h1 { margin: 0; color: #00cccc; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
+    .controls { display: flex; align-items: center; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+    .date-info { color: #00cccc; font-size: 16px; font-weight: bold; }
+    input[type="date"] { padding: 6px 10px; font-size: 14px; border-radius: 5px; border: 1px solid #00cccc; background: #222; color: #fff; }
 
-    .app-container { max-width: 1020px; width: 100%; }
-    
-    .page-header { 
-      margin-bottom: 28px; 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: flex-end; 
-    }
-    .page-title { font-size: 26px; font-weight: 700; color: #FFFFFF; }
-    .page-subtitle { font-size: 14px; color: var(--text-muted); margin-top: 4px; }
-
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 12px;
-      background: #065F46;
-      color: #34D399;
-      padding: 4px 10px;
-      border-radius: 20px;
-      margin-top: 6px;
-      font-weight: 500;
-    }
-
-    .top-editors-bar {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .card {
-      background-color: var(--card-bg);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
-      border: 1px solid var(--border-color);
-      overflow: hidden;
-      margin-bottom: 20px;
-    }
-
-    .table-container { width: 100%; overflow-x: auto; }
-    .data-table { width: 100%; border-collapse: collapse; text-align: left; }
-    .data-table th {
-      background-color: #111827;
-      color: var(--text-muted);
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      padding: 16px 24px;
-      font-weight: 600;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .data-table td {
-      padding: 16px 24px;
+    .dropdown { position: relative; display: inline-block; }
+    #person-dropdown-btn {
+      padding: 8px 14px;
+      border: 1px solid #00cccc;
+      border-radius: 5px;
+      background-color: #222;
+      color: #fff;
+      cursor: pointer;
+      font-weight: bold;
       font-size: 14px;
-      color: #E5E7EB;
-      border-bottom: 1px solid var(--border-color);
-      vertical-align: middle;
+      transition: 0.2s;
     }
-
-    .data-table tbody tr:hover { background-color: rgba(255, 255, 255, 0.03); }
-
-    .code-text {
-      font-family: 'Consolas', 'Courier New', monospace;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-    }
-
-    .actions-cell { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
-
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      background-color: var(--accent-color);
-      color: #FFFFFF;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 12px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      font-family: inherit;
-    }
-
-    .btn:hover { background-color: var(--accent-hover); transform: translateY(-1px); }
-    .btn-secondary { background-color: #374151; color: #F3F4F6; }
-    .btn-secondary:hover { background-color: #4B5563; }
-    .btn-success { background-color: #059669; }
-    .btn-success:hover { background-color: #047857; }
-
-    /* Модальное окно редактора */
-    .modal-backdrop {
-      position: fixed;
-      top: 0; left: 0; width: 100vw; height: 100vh;
-      background-color: rgba(0, 0, 0, 0.8);
-      backdrop-filter: blur(6px);
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.25s ease-in-out;
-      z-index: 1000;
-      padding: 20px;
-    }
-
-    .modal-backdrop.is-open { opacity: 1; pointer-events: auto; }
-
-    .editor-modal-card {
-      background-color: var(--card-bg);
-      border-radius: var(--radius);
-      border: 1px solid var(--border-color);
-      box-shadow: var(--shadow-modal);
-      width: 100%; max-width: 1050px;
-      max-height: 94vh;
-      display: flex; flex-direction: column;
-      overflow: hidden;
-    }
-
-    .modal-header { padding: 18px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: #111827; }
-    .modal-title { font-size: 18px; font-weight: 600; color: #FFFFFF; }
-    .modal-close-btn { background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer; }
-    
-    .editor-modal-body {
-      padding: 24px;
-      display: grid;
-      grid-template-columns: 480px 1fr;
-      gap: 24px;
-      overflow-y: auto;
-      background-color: #111827;
-      align-items: start;
-    }
-    @media (max-width: 900px) { .editor-modal-body { grid-template-columns: 1fr; } }
-
-    .controls-pane { background: #1F2937; padding: 16px; border-radius: 8px; border: 1px solid var(--border-color); max-height: 60vh; overflow-y: auto; }
-    .controls-pane h3 { font-size: 14px; margin-bottom: 12px; color: #60A5FA; text-transform: uppercase; letter-spacing: 0.05em; }
-    
-    .component-section {
-      background: #111827;
-      border: 1px solid var(--border-color);
-      border-radius: 6px;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-    .component-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 6px;
-      margin-bottom: 8px;
-    }
-    .component-header h4 { font-size: 13px; color: #34D399; margin: 0; }
-    .lock-label {
-      font-size: 11px;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      cursor: pointer;
-    }
-    .lock-label input { cursor: pointer; }
-
-    .control-group { margin-bottom: 6px; font-size: 11px; }
-    .control-group label { display: flex; justify-content: space-between; color: var(--text-muted); margin-bottom: 2px; }
-    .control-group input[type="range"] { width: 100%; accent-color: var(--accent-color); cursor: pointer; }
-
-    .preview-pane {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      background: #182234;
-      padding: 20px;
-      border-radius: 8px;
-      border: 1px dashed var(--border-color);
-      position: sticky;
-      top: 0;
-    }
-    .preview-pane span.hint { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-
-    .export-box {
-      margin-top: 16px;
-      background: #111827;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
-    }
-    .export-box label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
-    .export-box textarea {
-      width: 100%;
-      height: 120px;
-      background: #1F2937;
-      border: 1px solid var(--border-color);
-      color: #34D399;
-      font-family: monospace;
-      font-size: 11px;
-      padding: 8px;
-      border-radius: 4px;
-      resize: none;
-    }
-
-    .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: #111827; }
-
-    /* Этикетка 100x80 мм */
-    .industrial-label {
-      width: 100mm;
-      height: 80mm;
-      background-color: #FFFFFF;
-      color: #000000;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Arial, sans-serif;
-      border: 1px solid #D1D5DB;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .label-element {
+    #person-dropdown-btn:hover { background-color: #333; }
+    .dropdown-content {
+      display: none;
       position: absolute;
-      left: 0;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      background-color: #1a1a1a;
+      min-width: 230px;
+      box-shadow: 0px 8px 20px rgba(0,0,0,0.8);
+      border: 1px solid #00cccc;
+      border-radius: 5px;
+      z-index: 100;
+      padding: 12px;
+      max-height: 280px;
+      overflow-y: auto;
     }
+    .dropdown-content.show { display: block; }
+    .dropdown-actions { font-size: 12px; color: #00cccc; margin-bottom: 10px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 8px; }
+    .dropdown-actions span { cursor: pointer; text-decoration: underline; margin: 0 4px; }
+    .dropdown-actions span:hover { color: #fff; }
+    .person-checkbox-item { display: flex; align-items: center; gap: 10px; font-size: 13px; margin: 6px 0; cursor: pointer; color: #fff; }
+    .person-checkbox-item input { cursor: pointer; accent-color: #00cccc; width: 16px; height: 16px; }
+
+    #stats-container, #scrap-waiting-container { width: 95%; margin: 24px auto; overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; background-color: rgba(0,0,0,0.85); color: #fff; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+    th, td { border: 1px solid #333; padding: 12px 10px; text-align: center; font-size: 14px; white-space: nowrap; }
+    th { background-color: #1a1a1a; color: #00cccc; font-weight: bold; position: sticky; top: 0; z-index: 2; }
     
-    .text-layer span {
-      background-color: #FFFFFF;
-      padding: 0 6px;
-      display: inline-block;
-    }
+    .person-row { cursor: pointer; transition: background 0.2s; }
+    .person-row:hover { background-color: rgba(0, 204, 204, 0.15); }
+    td.name-cell { background-color: #1a1a1a; font-weight: bold; text-align: left; position: sticky; left: 0; z-index: 1; border-right: 2px solid #00cccc; }
 
-    .barcode-wrapper { width: 100%; display: flex; justify-content: center; align-items: center; }
-    .barcode-wrapper svg { max-width: 100%; display: block; }
+    th.total-col, td.total-col { background-color: rgba(0, 204, 204, 0.1); font-weight: bold; border-left: 2px solid #444; }
+    
+    tfoot tr td { background-color: #111; font-weight: bold; border-top: 2px solid #00cccc; }
 
-    @page { size: 100mm 80mm landscape; margin: 0; }
+    .total-split { display: flex; gap: 6px; align-items: center; justify-content: center; font-size: 14px; }
+    .total-sum { font-weight: bold; color: #ffffff; }
+    .t-ok { color: #00ffea; }
+    .t-ndf { color: #ff69b4; }
+    .sep { color: #666; font-weight: normal; }
 
-    @media print {
-      body { background: #ffffff !important; color: #000000 !important; }
-      .app-container, .modal-backdrop { display: none !important; }
-      #printContainer, #printContainer * { visibility: visible !important; }
-      #printContainer {
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
-        position: absolute !important;
-        left: 0 !important; top: 0 !important;
-        width: 100mm !important; height: 80mm !important;
-        background: #FFFFFF !important;
-      }
-      #printContainer .industrial-label { border: none !important; box-shadow: none !important; }
-    }
+    .detail-row td { background-color: rgba(20, 20, 20, 0.95); padding: 15px; }
+    .detail-table { width: 100%; border: 1px solid #444; }
+    .detail-table th { font-size: 12px; background: #000; color: #ff69b4; }
+    .detail-table th.sortable { cursor: pointer; user-select: none; transition: color 0.2s; }
+    .detail-table th.sortable:hover { color: #00cccc; }
+    .detail-table td { font-size: 13px; white-space: normal; text-align: left; border-bottom: 1px solid #222; }
+
+    .st-ndf { color: #ff69b4 !important; font-weight: bold; }
+    .st-scrap { color: #ff4444 !important; font-weight: bold; }
+    .st-waiting { color: #ffff00 !important; font-weight: bold; }
+    .st-ok { color: #ffffff; } 
+
+    .cell-split { display: flex; justify-content: space-around; gap: 10px; }
+    .scrap { color: #ff4444; font-weight: bold; }
+    .waiting { color: #ffff00; font-weight: bold; }
+    
+    details { width: 95%; margin: 10px auto; background: rgba(0,0,0,0.5); border-radius: 8px; }
+    summary { cursor: pointer; font-size: 18px; color: #00cccc; padding: 15px; font-weight: bold; outline: none; }
+    summary:hover { color: #fff; }
   </style>
 </head>
 <body>
+  <div class="header">
+    <h1>LCDR LIVE DATA 2026</h1>
+    <div class="controls">
+      <label class="date-info">Od:</label>
+      <input type="date" id="date-from"/>
+      <label class="date-info">Do:</label>
+      <input type="date" id="date-to"/>
 
-  <div class="app-container">
-    <header class="page-header">
-      <div>
-        <h1 class="page-title">🖨️ Друк етикеток (TSC DA220)</h1>
-        <p class="page-subtitle">Лист: FI Station KOVALCHYK Y. (Авто-обновление каждые 30 сек)</p>
-        <div class="status-badge" id="statusBadge">🟡 Подключение к базам данных...</div>
-      </div>
-      <div>
-        <button class="btn btn-secondary" onclick="fetchDataFromGoogleSheet()">🔄 Обновить сейчас</button>
-      </div>
-    </header>
-
-    <div class="top-editors-bar">
-      <button class="btn btn-secondary" onclick="openEditor('cs')">⚙️ Редактор CS (Обычные)</button>
-      <button class="btn btn-success" onclick="openEditor('mnt')">⚙️ Редактор MNT (С брендом)</button>
-    </div>
-
-    <main class="card">
-      <div class="table-container">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Serial Number (SN)</th>
-              <th>Part Number (PN)</th>
-              <th>Brand</th>
-              <th style="width: 150px; text-align: right;">Печать (CS / MNT)</th>
-            </tr>
-          </thead>
-          <tbody id="productsTableBody">
-            <tr><td colspan="5" style="text-align: center; padding: 30px;">Загрузка данных...</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </main>
-  </div>
-
-  <div class="modal-backdrop" id="editorModal">
-    <div class="editor-modal-card">
-      <div class="modal-header">
-        <h2 class="modal-title" id="editorModalTitle">Редактор этикетки</h2>
-        <button class="modal-close-btn" onclick="closeEditor()">&times;</button>
-      </div>
-      
-      <div class="editor-modal-body">
-        <div>
-          <div class="controls-pane" id="controlsPaneContainer"></div>
-          
-          <div class="export-box">
-            <label>📋 Параметры конфигурации:</label>
-            <textarea id="paramsExportField" readonly onclick="this.select();"></textarea>
+      <div class="dropdown" id="person-dropdown-container">
+        <button id="person-dropdown-btn">Pracownicy (Wszyscy) ▼</button>
+        <div id="person-dropdown-content" class="dropdown-content">
+          <div class="dropdown-actions">
+            <span onclick="selectAllPeople(true)">Zaznacz wszystkich</span> | 
+            <span onclick="selectAllPeople(false)">Odznacz wszystkich</span>
           </div>
-        </div>
-
-        <div class="preview-pane">
-          <span class="hint">Живой предпросмотр (100x80 мм)</span>
-          <div id="livePreviewContainer"></div>
+          <div id="person-checkboxes"></div>
         </div>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="resetCurrentEditor()">Сбросить</button>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-secondary" onclick="closeEditor()">Закрыть</button>
-          <button class="btn" onclick="printFromEditor()">🖨️ Печать</button>
-        </div>
-      </div>
+      <button id="update-btn" style="padding:8px 16px; border:none; border-radius:5px; background-color:#008080; color:#fff; cursor:pointer; font-weight:bold; transition: 0.3s;">Aktualizuj</button>
     </div>
   </div>
 
-  <div id="printContainer" style="display: none;"></div>
+  <div id="stats-container"></div>
+
+  <details id="scrap-waiting-table">
+    <summary>📊 Scrap / Waiting Statistics</summary>
+    <div id="scrap-waiting-container"></div>
+  </details>
 
   <script>
-    const SUPABASE_URL = 'https://xgjggfnfgrmkuclgjmih.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_MLyF6CMVplwDyDqSeDnSBA__RakJscC';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const apiKey = 'AIzaSyCP7tzYiGwIZ6cymLAlv_9QgPIEshnRgqI';
+    const sheetId = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
+    const sheetURL = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/`;
+    const validStatuses = ['OK', 'NDF'];
 
-    const TABLE_NAME = 'products_db';
-    const COLUMN_PN = 'tpv_pn';
-    const COLUMN_SN = 'panel_sn';
-    const COLUMN_BRAND = 'brand';
+    let lastFilteredData = []; 
+    let selectedPeople = new Set(); 
 
-    const SHEET_ID = '10W03bvKlVFlIUcxsHkzP_v_13gtnYRBmnrrO0ujB1bU';
-    const GID = '0';
-
-    let products = [];
-    let activeEditorType = 'cs';
-    let sampleProduct = { sn: "GBV270331B6X00LC0WTG5BM0027", pn: "750GBV270331B6N000", brand: "SAMPLE BRAND" };
-
-    const tableBody = document.getElementById('productsTableBody');
-    const editorModal = document.getElementById('editorModal');
-
-    // ЕДИНЫЙ ИСТОЧНИК ИСТИННЫХ КООРДИНАТ
-    const defaultConfigs = {
-      cs: {
-        h_pn_locked: true, h_pn_x: 0, h_pn_y: -10, h_pn_h: 0, h_pn_f: 17, h_pn_sy: 1.3,
-        bc_pn_locked: true, bc_pn_x: 0, bc_pn_y: -17, bc_pn_h: 60,
-        txt_pn_locked: true, txt_pn_x: 0, txt_pn_y: -30, txt_pn_h: 12, txt_pn_f: 20, txt_pn_sy: 1.3,
-        h_sn_locked: true, h_sn_x: 0, h_sn_y: -30, h_sn_h: 0, h_sn_f: 18, h_sn_sy: 1.4,
-        bc_sn_locked: true, bc_sn_x: 0, bc_sn_y: -40, bc_sn_h: 90,
-        txt_sn_locked: false, txt_sn_x: 0, txt_sn_y: -40, txt_sn_h: 0, txt_sn_f: 17, txt_sn_sy: 1.3
-      },
-      mnt: {
-        brand_locked: true, brand_x: 119, brand_y: 3, brand_h: 0, brand_f: 14, brand_sy: 1.6,
-        h_pn_locked: true, h_pn_x: 0, h_pn_y: -30, h_pn_h: 0, h_pn_f: 18, h_pn_sy: 1.2,
-        bc_pn_locked: true, bc_pn_x: 0, bc_pn_y: -30, bc_pn_h: 60,
-        txt_pn_locked: true, txt_pn_x: 0, txt_pn_y: -30, txt_pn_h: 3, txt_pn_f: 20, txt_pn_sy: 1.6,
-        h_sn_locked: false, h_sn_x: 0, h_sn_y: -20, h_sn_h: 0, h_sn_f: 18, h_sn_sy: 1.4,
-        bc_sn_locked: true, bc_sn_x: 0, bc_sn_y: -30, bc_sn_h: 80,
-        txt_sn_locked: true, txt_sn_x: 0, txt_sn_y: -40, txt_sn_h: 0, txt_sn_f: 17, txt_sn_sy: 1.8
-      }
+    const diagonalMapPrefix = {   '3P0':65,'3H0':55,'WP0':65,'WP5':65,'3M0':50,'3Q0':43,'WQ0':43,'3C0':32,'WC0':32,'WH8':55,
+                               'WH0':55,'WM0':50,'WC8':32,'WU0':43,'SQ1':43,'WM5':50,'WC7':32,'WP5':65,'WW1':75,'WM6':50 };
+    const diagonalMap = {
+      '860':86,'850':85,'750':75,'700':70,'650':65,'580':58,'575':58,
+      '550':55,'545':55,'500':50,'498':50,'495':50,'490':50,
+      '438':43,'435':43,'430':43,'428':43,'425':43,'420':43,
+      '418':43,'415':43,'398':43,'395':43,'390':43,
+      '348':32,'345':32,'340':32,'328':32,'325':32,'320':32,
+      '318':32,'315':32,'278':27,'275':27,'270':27,
+      '248':24,'245':24,'240':24,'238':24,'235':24,'230':24
     };
 
-    function getParams(type) {
-      const cfg = defaultConfigs[type];
-      const p = {};
-      for (const key in cfg) {
-        const el = document.getElementById(`${type}_${key}`);
-        if (el) {
-          if (el.type === 'checkbox') {
-            p[key] = el.checked;
-          } else if (key.endsWith('_sy')) {
-            p[key] = parseFloat(el.value);
-          } else {
-            p[key] = parseInt(el.value);
-          }
-        } else {
-          p[key] = cfg[key];
-        }
-      }
-      return p;
+    function getDiagonals(serial){
+      if(!serial || serial.length<6) return [];
+      const upper = serial.toUpperCase();
+      const result = new Set();
+      const match = upper.match(/^[A-Z]{3}(\d{3})/);
+      if(match && diagonalMap[match[1]]) result.add(diagonalMap[match[1]]);
+      const prefix = upper.slice(0,3);
+      if(diagonalMapPrefix[prefix]) result.add(diagonalMapPrefix[prefix]);
+      return [...result];
     }
 
-    function renderControlsPane(type) {
-      const container = document.getElementById('controlsPaneContainer');
-      if (type === 'cs') {
-        container.innerHTML = `
-          <h3>Редактор CS (Обычные)</h3>
-          ${renderComponentControl('cs', 'h_pn', 'Шапка PN', true, true, true, true)}
-          ${renderComponentControl('cs', 'bc_pn', 'Штрихкод PN', true, true, false, false)}
-          ${renderComponentControl('cs', 'txt_pn', 'Текст PN', true, true, true, true)}
-          ${renderComponentControl('cs', 'h_sn', 'Шапка SN', true, true, true, true)}
-          ${renderComponentControl('cs', 'bc_sn', 'Штрихкод SN', true, true, false, false)}
-          ${renderComponentControl('cs', 'txt_sn', 'Текст SN', true, true, true, true)}
-        `;
-      } else {
-        container.innerHTML = `
-          <h3>Редактор MNT (С брендом)</h3>
-          ${renderComponentControl('mnt', 'brand', 'Brand', true, true, true, true)}
-          ${renderComponentControl('mnt', 'h_pn', 'Шапка PN', true, true, true, true)}
-          ${renderComponentControl('mnt', 'bc_pn', 'Штрихкод PN', true, true, false, false)}
-          ${renderComponentControl('mnt', 'txt_pn', 'Текст PN', true, true, true, true)}
-          ${renderComponentControl('mnt', 'h_sn', 'Шапка SN', true, true, true, true)}
-          ${renderComponentControl('mnt', 'bc_sn', 'Штрихкод SN', true, true, false, false)}
-          ${renderComponentControl('mnt', 'txt_sn', 'Текст SN', true, true, true, true)}
-        `;
+    async function getData(sheetName){
+      try{
+        const response = await fetch(`${sheetURL}${encodeURIComponent(sheetName)}?key=${apiKey}&t=${new Date().getTime()}`);
+        const data = await response.json();
+        return data.values || [];
+      }catch(err){ 
+        console.error("Fetch error:", err);
+        return []; 
       }
     }
 
-    function renderComponentControl(type, idPrefix, title, hasX, hasY, hasFont, hasScaleY) {
-      const cfg = defaultConfigs[type];
-      const isLockedBool = cfg[`${idPrefix}_locked`];
-      const locked = isLockedBool ? 'checked' : '';
-      const x = cfg[`${idPrefix}_x`] !== undefined ? cfg[`${idPrefix}_x`] : 0;
-      const y = cfg[`${idPrefix}_y`] !== undefined ? cfg[`${idPrefix}_y`] : 0;
-      const h = cfg[`${idPrefix}_h`] !== undefined ? cfg[`${idPrefix}_h`] : 12;
-      const f = cfg[`${idPrefix}_f`] !== undefined ? cfg[`${idPrefix}_f`] : 14;
-      const sy = cfg[`${idPrefix}_sy`] !== undefined ? cfg[`${idPrefix}_sy`] : 1.0;
-
-      return `
-        <div class="component-section" id="sec_${type}_${idPrefix}">
-          <div class="component-header">
-            <h4>${title}</h4>
-            <label class="lock-label">
-              <input type="checkbox" id="${type}_${idPrefix}_locked" ${locked} onchange="toggleLock('${type}', '${idPrefix}')"> Заблокировать
-            </label>
-          </div>
-          <div class="component-fields" id="fields_${type}_${idPrefix}" style="opacity: ${isLockedBool ? '0.4' : '1'};">
-            ${hasX ? `<div class="control-group"><label><span>По горизонтали (X):</span> <strong id="lbl_${type}_${idPrefix}_x">${x}</strong>px</label><input type="range" id="${type}_${idPrefix}_x" min="-150" max="150" value="${x}" oninput="onSliderInput('${type}')" ${isLockedBool ? 'disabled' : ''}></div>` : ''}
-            ${hasY ? `<div class="control-group"><label><span>Вертикальная позиция (Y от верха):</span> <strong id="lbl_${type}_${idPrefix}_y">${y}</strong>px</label><input type="range" id="${type}_${idPrefix}_y" min="-100" max="400" value="${y}" oninput="onSliderInput('${type}')" ${isLockedBool ? 'disabled' : ''}></div>` : ''}
-            <div class="control-group"><label><span>Высота блока / Отступ:</span> <strong id="lbl_${type}_${idPrefix}_h">${h}</strong>px</label><input type="range" id="${type}_${idPrefix}_h" min="0" max="150" value="${h}" oninput="onSliderInput('${type}')" ${isLockedBool ? 'disabled' : ''}></div>
-            ${hasFont ? `<div class="control-group"><label><span>Размер шрифта:</span> <strong id="lbl_${type}_${idPrefix}_f">${f}</strong>pt</label><input type="range" id="${type}_${idPrefix}_f" min="8" max="45" value="${f}" oninput="onSliderInput('${type}')" ${isLockedBool ? 'disabled' : ''}></div>` : ''}
-            ${hasScaleY ? `<div class="control-group"><label><span>Растянуть в высоту (ScaleY):</span> <strong id="lbl_${type}_${idPrefix}_sy">${sy}</strong></label><input type="range" id="${type}_${idPrefix}_sy" min="0.5" max="3.0" step="0.1" value="${sy}" oninput="onSliderInput('${type}')" ${isLockedBool ? 'disabled' : ''}></div>` : ''}
-          </div>
-        </div>
-      `;
+    async function fetchData(){
+      const sheetNames = ['FI Station KOVALCHYK Y.','FI Station 2 ULANOVYCH.R'];
+      let combined = [];
+      for(const name of sheetNames){
+        const sheetData = await getData(name);
+        if(sheetData.length<2) continue;
+        const rows = sheetData.slice(1);
+        const mapped = rows.map(row=>({
+          date: row[0]||'',
+          serial: row[2]||'',
+          status: (row[4]||'').toUpperCase(),
+          finalna: row[6]||'',
+          person: row[5]||'',
+          statusH: row[7]||'',
+          matrixStatus: row[9]||'',
+          description: row[10]||''
+        }));
+        combined = combined.concat(mapped);
+      }
+      return combined;
     }
 
-    function toggleLock(type, idPrefix) {
-      const isLocked = document.getElementById(`${type}_${idPrefix}_locked`).checked;
-      const fieldsContainer = document.getElementById(`fields_${type}_${idPrefix}`);
-      const inputs = fieldsContainer.querySelectorAll('input');
+    async function update(){
+      const btn = document.getElementById('update-btn');
+      btn.style.backgroundColor = "#555";
+      btn.textContent = "Ładowanie...";
+
+      const dateFrom = document.getElementById('date-from').value;
+      const dateTo = document.getElementById('date-to').value;
       
-      inputs.forEach(input => {
-        if (input.type !== 'checkbox') {
-          input.disabled = isLocked;
-        }
+      if(!dateFrom || !dateTo) { 
+        btn.textContent = "Aktualizuj";
+        btn.style.backgroundColor = "#008080";
+        return; 
+      }
+
+      const allData = await fetchData();
+      lastFilteredData = allData.filter(d=>{
+        const dDate = d.date.split(' ')[0];
+        return dDate >= dateFrom && dDate <= dateTo;
       });
-      fieldsContainer.style.opacity = isLocked ? '0.4' : '1';
-      updateLivePreview(sampleProduct);
+
+      const availablePeople = Array.from(new Set(lastFilteredData.map(d => d.person).filter(Boolean))).sort();
+      buildPersonDropdown(availablePeople);
+
+      renderFilteredViews();
+
+      btn.style.backgroundColor = "#008080";
+      btn.textContent = "Aktualizuj";
     }
 
-    function generateLabelMarkup(type, product) {
-      const p = getParams(type);
-      if (type === 'cs') {
-        return `
-          <div class="industrial-label">
-            <div class="label-element" style="z-index: 1; top: ${p.bc_pn_y}px; transform: translateX(${p.bc_pn_x}px);">
-              <div class="barcode-wrapper"><svg id="live_bc_pn"></svg></div>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.h_pn_y}px; transform: translateX(${p.h_pn_x}px);">
-              <span style="font-size: ${p.h_pn_f}pt; transform: scaleY(${p.h_pn_sy}); font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">PN</span>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.txt_pn_y}px; transform: translateX(${p.txt_pn_x}px);">
-              <span style="font-size: ${p.txt_pn_f}pt; transform: scaleY(${p.txt_pn_sy}); font-weight: 900; font-family: 'Consolas', monospace; line-height: 1.1;">${escapeHtml(product.pn)}</span>
-            </div>
-
-            <div class="label-element" style="z-index: 1; top: ${p.bc_sn_y}px; transform: translateX(${p.bc_sn_x}px);">
-              <div class="barcode-wrapper"><svg id="live_bc_sn"></svg></div>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.h_sn_y}px; transform: translateX(${p.h_sn_x}px);">
-              <span style="font-size: ${p.h_sn_f}pt; transform: scaleY(${p.h_sn_sy}); font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">SN</span>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.txt_sn_y}px; transform: translateX(${p.txt_sn_x}px);">
-              <span style="font-size: ${p.txt_sn_f}pt; transform: scaleY(${p.txt_sn_sy}); font-weight: 900; font-family: 'Consolas', monospace; line-height: 1.1;">${escapeHtml(product.sn)}</span>
-            </div>
-          </div>
-        `;
+    function buildPersonDropdown(peopleList) {
+      const container = document.getElementById('person-checkboxes');
+      container.innerHTML = '';
+      
+      if (selectedPeople.size === 0) {
+        peopleList.forEach(p => selectedPeople.add(p));
       } else {
-        return `
-          <div class="industrial-label">
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.brand_y}px; transform: translateX(${p.brand_x}px);">
-              <span style="font-size: ${p.brand_f}pt; transform: scaleY(${p.brand_sy}); font-weight: 900; text-transform: uppercase;">${escapeHtml(product.brand)}</span>
-            </div>
 
-            <div class="label-element" style="z-index: 1; top: ${p.bc_pn_y}px; transform: translateX(${p.bc_pn_x}px);">
-              <div class="barcode-wrapper"><svg id="live_bc_pn"></svg></div>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.h_pn_y}px; transform: translateX(${p.h_pn_x}px);">
-              <span style="font-size: ${p.h_pn_f}pt; transform: scaleY(${p.h_pn_sy}); font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">PN</span>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.txt_pn_y}px; transform: translateX(${p.txt_pn_x}px);">
-              <span style="font-size: ${p.txt_pn_f}pt; transform: scaleY(${p.txt_pn_sy}); font-weight: 900; font-family: 'Consolas', monospace; line-height: 1.1;">${escapeHtml(product.pn)}</span>
-            </div>
-
-            <div class="label-element" style="z-index: 1; top: ${p.bc_sn_y}px; transform: translateX(${p.bc_sn_x}px);">
-              <div class="barcode-wrapper"><svg id="live_bc_sn"></svg></div>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.h_sn_y}px; transform: translateX(${p.h_sn_x}px);">
-              <span style="font-size: ${p.h_sn_f}pt; transform: scaleY(${p.h_sn_sy}); font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">SN</span>
-            </div>
-            <div class="label-element text-layer" style="z-index: 10; top: ${p.txt_sn_y}px; transform: translateX(${p.txt_sn_x}px);">
-              <span style="font-size: ${p.txt_sn_f}pt; transform: scaleY(${p.txt_sn_sy}); font-weight: 900; font-family: 'Consolas', monospace; line-height: 1.1;">${escapeHtml(product.sn)}</span>
-            </div>
-          </div>
-        `;
+        const updatedSet = new Set();
+        peopleList.forEach(p => {
+          if (selectedPeople.has(p)) updatedSet.add(p);
+        });
+        if (updatedSet.size === 0) peopleList.forEach(p => updatedSet.add(p));
+        selectedPeople = updatedSet;
       }
-    }
 
-    function updateLivePreview(prod = sampleProduct) {
-      const previewPaneContainer = document.getElementById('livePreviewContainer');
-      previewPaneContainer.innerHTML = generateLabelMarkup(activeEditorType, prod);
-      
-      const p = getParams(activeEditorType);
-      try {
-        JsBarcode("#live_bc_pn", prod.pn, { format: "CODE128", displayValue: false, margin: 0, background: "transparent", height: p.bc_pn_h, width: 2 });
-        JsBarcode("#live_bc_sn", prod.sn, { format: "CODE128", displayValue: false, margin: 0, background: "transparent", height: p.bc_sn_h, width: 2 });
-      } catch (e) {}
-
-      document.getElementById('paramsExportField').value = JSON.stringify({ type: activeEditorType, ...p }, null, 2);
-    }
-
-    function onSliderInput(type) {
-      const p = getParams(type);
-      for (let key in p) {
-        if (key.endsWith('_locked')) continue;
-        const el = document.getElementById(`lbl_${type}_${key}`);
-        if (el) el.innerText = p[key];
-      }
-      updateLivePreview(sampleProduct);
-    }
-
-    function openEditor(type, productFromTable = null) {
-      activeEditorType = type;
-      if (productFromTable) sampleProduct = productFromTable;
-      document.getElementById('editorModalTitle').innerText = type === 'cs' ? 'Редактор этикетки: CS (Обычная)' : 'Редактор этикетки: MNT (С брендом)';
-      
-      renderControlsPane(type);
-      editorModal.classList.add('is-open');
-      setTimeout(() => { updateLivePreview(sampleProduct); }, 50);
-    }
-
-    function closeEditor() { editorModal.classList.remove('is-open'); }
-
-    function resetCurrentEditor() {
-      renderControlsPane(activeEditorType);
-      onSliderInput(activeEditorType);
-    }
-
-    function printFromEditor() {
-      const printContainer = document.getElementById('printContainer');
-      printContainer.innerHTML = generateLabelMarkup(activeEditorType, sampleProduct);
-      
-      const p = getParams(activeEditorType);
-      try {
-        printContainer.querySelector('#live_bc_pn').id = 'print_bc_pn';
-        printContainer.querySelector('#live_bc_sn').id = 'print_bc_sn';
-        JsBarcode("#print_bc_pn", sampleProduct.pn, { format: "CODE128", displayValue: false, margin: 0, background: "transparent", height: p.bc_pn_h, width: 2 });
-        JsBarcode("#print_bc_sn", sampleProduct.sn, { format: "CODE128", displayValue: false, margin: 0, background: "transparent", height: p.bc_sn_h, width: 2 });
-      } catch (e) {}
-
-      window.print();
-    }
-
-    function parseCSV(str) {
-      const arr = [];
-      let quote = false;
-      for (let row = 0, col = 0, c = 0; c < str.length; c++) {
-        let cc = str[c], nc = str[c+1];
-        arr[row] = arr[row] || [];
-        arr[row][col] = arr[row][col] || '';
-        if (cc == '"' && quote && nc == '"') { arr[row][col] += cc; ++c; continue; }
-        if (cc == '"') { quote = !quote; continue; }
-        if (cc == ',' && !quote) { ++col; continue; }
-        if (cc == '\r' && nc == '\n' && !quote) { ++row; col = 0; ++c; continue; }
-        if (cc == '\n' && !quote) { ++row; col = 0; continue; }
-        if (cc == '\r' && !quote) { ++row; col = 0; continue; }
-        arr[row][col] += cc;
-      }
-      return arr;
-    }
-
-    async function getProductFromDatabase(sn) {
-      try {
-        const { data, error } = await supabaseClient
-          .from(TABLE_NAME)
-          .select(`${COLUMN_PN}, ${COLUMN_BRAND}`)
-          .eq(COLUMN_SN, sn)
-          .single();
-
-        if (error || !data) return { pn: "NOT_FOUND_IN_DB", brand: "-" };
-        return { pn: data[COLUMN_PN] || "N/A", brand: data[COLUMN_BRAND] || "-" };
-      } catch (e) {
-        return { pn: "DB_ERROR", brand: "ERR" };
-      }
-    }
-
-    async function fetchDataFromGoogleSheet() {
-      try {
-        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}&_nc=${Date.now()}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Ошибка сети Google Sheets');
+      peopleList.forEach(person => {
+        const label = document.createElement('label');
+        label.className = 'person-checkbox-item';
         
-        const csvText = await response.text();
-        const rows = parseCSV(csvText);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = person;
+        cb.checked = selectedPeople.has(person);
+        cb.onchange = () => {
+          if (cb.checked) selectedPeople.add(person);
+          else selectedPeople.delete(person);
+          updateDropdownButtonText(peopleList.length);
+          renderFilteredViews();
+        };
 
-        const rawSnList = [];
-        for (let i = 1; i < rows.length; i++) {
-          const row = rows[i];
-          if (!row || row.length < 3) continue;
-          const sn = row[2] ? row[2].trim() : '';
-          if (sn && sn.toUpperCase() !== 'SERIAL NUMBER') rawSnList.push(sn);
-        }
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(person));
+        container.appendChild(label);
+      });
 
-        const lastSnList = rawSnList.slice(-5).reverse();
-        const validItems = [];
+      updateDropdownButtonText(peopleList.length);
+    }
 
-        for (const sn of lastSnList) {
-          const dbData = await getProductFromDatabase(sn);
-          validItems.push({ pn: dbData.pn, brand: dbData.brand, sn: sn });
-        }
+    function selectAllPeople(select) {
+      const checkboxes = document.querySelectorAll('#person-checkboxes input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        cb.checked = select;
+        if (select) selectedPeople.add(cb.value);
+        else selectedPeople.delete(cb.value);
+      });
+      updateDropdownButtonText(checkboxes.length);
+      renderFilteredViews();
+    }
 
-        products = validItems;
-        if (products.length > 0) sampleProduct = products[0];
-        renderTable();
-
-        const badge = document.getElementById('statusBadge');
-        badge.style.background = '#065F46';
-        badge.style.color = '#34D399';
-        badge.innerText = `🟢 Синхронизировано (${new Date().toLocaleTimeString()})`;
-      } catch (error) {
-        console.error(error);
-        const badge = document.getElementById('statusBadge');
-        badge.style.background = '#991B1B';
-        badge.style.color = '#FCA5A5';
-        badge.innerText = '🔴 Ошибка связи';
+    function updateDropdownButtonText(total) {
+      const btn = document.getElementById('person-dropdown-btn');
+      const count = selectedPeople.size;
+      if (count === total || total === 0) {
+        btn.textContent = `Pracownicy (Wszyscy) ▼`;
+      } else {
+        btn.textContent = `Pracownicy (${count}/${total}) ▼`;
       }
     }
 
-    function renderTable() {
-      if (products.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 20px;">Записей не найдено</td></tr>`;
+    function renderFilteredViews() {
+      const filteredDataByPeople = lastFilteredData.filter(d => selectedPeople.has(d.person));
+
+      const stats = calculateDetailedStats(filteredDataByPeople);
+      renderTable(stats);
+
+      const scrapWaitingStats = calculateScrapWaitingStats(filteredDataByPeople);
+      renderScrapWaitingTable(scrapWaitingStats);
+    }
+
+    function calculateDetailedStats(data){
+      const stats = {};
+      data.forEach(({date, serial, status, person})=>{
+        if(!validStatuses.includes(status)) return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+
+        if(!stats[person]) {
+            stats[person] = { diagonals: {}, okCount: 0, ndfCount: 0, days: new Set() };
+        }
+
+        const day = date.split(' ')[0];
+        if(day) stats[person].days.add(day);
+        if(status === 'OK') stats[person].okCount++;
+        if(status === 'NDF') stats[person].ndfCount++;
+
+        diagonals.forEach(diagonal=>{
+          if(!stats[person].diagonals[diagonal]) stats[person].diagonals[diagonal] = { sum:0 };
+          stats[person].diagonals[diagonal].sum++;
+        });
+      });
+      return stats;
+    }
+
+    function calculateScrapWaitingStats(data){
+      const stats = {};
+      data.forEach(({serial, status, person})=>{
+        if(!person||!serial||!status) return;
+        const upperStatus = status.toUpperCase();
+        let type = (upperStatus.includes('SCRAP')) ? 'scrap' : (upperStatus.includes('WAITING')) ? 'waiting' : null;
+        if(!type) return;
+        const diagonals = getDiagonals(serial);
+        if(diagonals.length===0) return;
+        if(!stats[person]) stats[person]={};
+        diagonals.forEach(diagonal=>{
+          if(!stats[person][diagonal]) stats[person][diagonal]={scrap:0, waiting:0};
+          stats[person][diagonal][type]++;
+        });
+      });
+      return stats;
+    }
+
+    function renderTable(stats){
+      const container=document.getElementById('stats-container'); 
+      container.innerHTML='';
+      const diagonals=Array.from(new Set(Object.values(stats).flatMap(p=>Object.keys(p.diagonals).map(Number)))).sort((a,b)=>b-a);
+      
+      let people=Object.keys(stats).sort((a,b)=>{
+        let sumA = stats[a].okCount + stats[a].ndfCount;
+        let sumB = stats[b].okCount + stats[b].ndfCount;
+        return sumB - sumA;
+      });
+
+      if(people.length===0){ container.innerHTML='<p style="text-align:center; padding: 20px;">Brak danych dla wybranych pracowników</p>'; return; }
+
+      const table = document.createElement('table');
+      const header = `<thead><tr>
+                        <th>Name</th>
+                        ${diagonals.map(d=>`<th>${d}</th>`).join('')}
+                        <th class="total-col">Total (Sum / OK / NDF)</th>
+                        <th class="total-col">Dni</th>
+                      </tr></thead>`;
+      table.innerHTML = header;
+
+      const tbody = document.createElement('tbody');
+
+      const diagonalTotals = {};
+      diagonals.forEach(d => diagonalTotals[d] = 0);
+      let grandTotalOk = 0;
+      let grandTotalNdf = 0;
+
+      people.forEach(person=>{
+        const tr = document.createElement('tr');
+        tr.className = 'person-row';
+        tr.onclick = () => toggleDetails(tr, person);
+
+        const pData = stats[person];
+        const rowTotal = pData.okCount + pData.ndfCount;
+
+        grandTotalOk += pData.okCount;
+        grandTotalNdf += pData.ndfCount;
+
+        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
+                       diagonals.map(d=> {
+                         const val = pData.diagonals[d] ? pData.diagonals[d].sum : 0;
+                         if(val) diagonalTotals[d] += val;
+                         return `<td>${val || '-'}</td>`;
+                       }).join('') +
+                       `<td class="total-col">
+                          <div class="total-split">
+                            <span class="total-sum">${rowTotal}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ok">${pData.okCount}</span>
+                            <span class="sep">/</span>
+                            <span class="t-ndf">${pData.ndfCount}</span>
+                          </div>
+                        </td>` +
+                       `<td class="total-col">${pData.days.size}</td>`;
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+
+      const grandTotalSum = grandTotalOk + grandTotalNdf;
+      const tfoot = document.createElement('tfoot');
+      tfoot.innerHTML = `
+        <tr>
+          <td class="name-cell">Razem / Total</td>
+          ${diagonals.map(d => `<td>${diagonalTotals[d] || '-'}</td>`).join('')}
+          <td class="total-col">
+            <div class="total-split">
+              <span class="total-sum">${grandTotalSum}</span>
+              <span class="sep">/</span>
+              <span class="t-ok">${grandTotalOk}</span>
+              <span class="sep">/</span>
+              <span class="t-ndf">${grandTotalNdf}</span>
+            </div>
+          </td>
+          <td class="total-col">-</td>
+        </tr>`;
+      table.appendChild(tfoot);
+
+      container.appendChild(table);
+    }
+
+    function toggleDetails(row, personName) {
+      if(row.nextSibling && row.nextSibling.classList.contains('detail-row')){
+        row.nextSibling.remove();
         return;
       }
 
-      tableBody.innerHTML = '';
-      products.forEach((product, index) => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><strong>${index + 1}</strong></td>
-          <td class="code-text">${escapeHtml(product.sn)}</td>
-          <td class="code-text">${escapeHtml(product.pn)}</td>
-          <td><span style="background: #374151; padding: 3px 8px; border-radius: 4px; font-size: 12px; font-weight: 600;">${escapeHtml(product.brand)}</span></td>
-          <td class="actions-cell">
-            <button class="btn btn-secondary" onclick="openEditor('cs', products[${index}])" title="Обычная этикетка (CS)">CS</button>
-            <button class="btn btn-success" onclick="openEditor('mnt', products[${index}])" title="Этикетка с брендом (MNT)">MNT</button>
-          </td>
-        `;
-        tableBody.appendChild(row);
+      const detailRow = document.createElement('tr');
+      detailRow.className = 'detail-row';
+      const containerTd = document.createElement('td');
+      containerTd.colSpan = 100;
+      detailRow.appendChild(containerTd);
+      row.after(detailRow);
+
+      renderDetailContent(containerTd, personName, 'asc');
+    }
+
+    function renderDetailContent(containerTd, personName, sortOrder) {
+      let details = lastFilteredData.filter(d => d.person === personName);
+
+      details.sort((a, b) => {
+        const comp = a.serial.localeCompare(b.serial, undefined, { numeric: true, sensitivity: 'base' });
+        return sortOrder === 'asc' ? comp : -comp;
       });
+
+      const arrow = sortOrder === 'asc' ? ' ▲' : ' ▼';
+
+      let rowsHtml = details.map(d => {
+        let statusClass = "st-ok";
+        let rowBg = "transparent";
+        const s = d.status.toUpperCase();
+        if (s.includes('SCRAP')) { statusClass = "st-scrap"; rowBg = "rgba(255, 0, 0, 0.2)"; } 
+        else if (s.includes('WAITING')) { statusClass = "st-waiting"; rowBg = "rgba(255, 255, 0, 0.1)"; } 
+        else if (s.includes('NDF')) { statusClass = "st-ndf"; rowBg = "rgba(255, 105, 180, 0.2)"; }
+        return `<tr style="background-color: ${rowBg};">
+                  <td class="${statusClass}">${d.serial}</td>
+                  <td class="${statusClass}">${d.status}</td>
+                  <td class="${statusClass}" style="font-weight:bold;">${d.finalna}</td>
+                  <td class="${statusClass}">${d.statusH}</td>
+                  <td class="${statusClass}">${d.matrixStatus}</td>
+                  <td class="${statusClass}">${d.description}</td>
+                </tr>`;
+      }).join('');
+
+      const nextOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+
+      containerTd.innerHTML = `
+        <table class="detail-table">
+          <thead>
+            <tr>
+              <th class="sortable" onclick="renderDetailContent(this.closest('td'), '${personName}', '${nextOrder}')" title="Kliknij, aby posortować">
+                Serial${arrow}
+              </th>
+              <th>Status</th>
+              <th>FINALNA</th>
+              <th>H Status</th>
+              <th>New / NP</th>
+              <th>Info / Description</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>`;
     }
 
-    function escapeHtml(text) {
-      const div = document.createElement('div');
-      div.innerText = text;
-      return div.innerHTML;
+    function renderScrapWaitingTable(stats){
+      const container = document.getElementById('scrap-waiting-container');
+      container.innerHTML = '';
+      const diagonals = Array.from(new Set(Object.values(stats).flatMap(p => Object.keys(p).map(Number)))).sort((a,b)=>b-a);
+      if(diagonals.length === 0) {
+          container.innerHTML = '<p style="text-align:center; padding: 10px;">Brak danych</p>';
+          return;
+      }
+      const table = document.createElement('table');
+      table.innerHTML = `<thead><tr><th>Name</th>${diagonals.map(d=>`<th>${d}</th>`).join('')}</tr></thead>`;
+      const tbody = document.createElement('tbody');
+      Object.keys(stats).forEach(person => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="name-cell">${person}</td>` + 
+          diagonals.map(d => {
+            if(stats[person][d]) {
+              return `<td><div class="cell-split"><span class="scrap">${stats[person][d].scrap}</span><span class="waiting">${stats[person][d].waiting}</span></div></td>`;
+            }
+            return '<td>-</td>';
+          }).join('');
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      container.appendChild(table);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      fetchDataFromGoogleSheet();
-      setInterval(fetchDataFromGoogleSheet, 30000);
+    document.getElementById('person-dropdown-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('person-dropdown-content').classList.toggle('show');
     });
+
+    document.addEventListener('click', (e) => {
+      const container = document.getElementById('person-dropdown-container');
+      if (!container.contains(e.target)) {
+        document.getElementById('person-dropdown-content').classList.remove('show');
+      }
+    });
+
+    document.getElementById('update-btn').addEventListener('click', update);
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    document.getElementById('date-from').value = todayStr;
+    document.getElementById('date-to').value = todayStr;
+    update();
   </script>
 </body>
 </html>
